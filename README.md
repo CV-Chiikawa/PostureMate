@@ -41,9 +41,11 @@ Webcam은 브라우저 보안 정책상 localhost 또는 HTTPS 환경에서 동�
 1. Header의 `☰ 메뉴`에서 `분석 설정`을 열어 Mode와 입력 방식을 확인합니다.
 2. Dashboard에서 Camera Preview, 현재 자세와 Coaching 영역을 확인하고 `분석 시작`을 누릅니다.
 3. 분석 중에는 같은 화면에서 상태, Coaching, Raw Feature와 Event Log를 확인합니다.
-4. 분석을 종료하면 같은 Dashboard 상단에 Session Summary가 나타납니다.
+4. 분석을 종료하면 기존 Dashboard는 제자리에 유지되고, 전체 Dashboard 아래에 Session Summary가 생성됩니다. 우측 하단의 `분석 결과 보기`를 누르면 결과로 부드럽게 이동합니다.
 
 최초 방문 시에는 화면 조작을 막지 않는 작은 `사용 안내` 패널이 자동으로 열립니다. 닫을 때 `다음부터 자동으로 열지 않기`를 선택할 수 있고, Header의 `☰ 메뉴 → 사용 안내`에서 언제든 다시 열 수 있습니다. 설정은 계층형 목록으로 제공하며 모의면접이 아닌 Mode에서는 Rubric을 숨기고, 데모 모드에서만 `시연 도구`를 제공합니다. 실제 카메라가 하나면 장치명만 표시하며 둘 이상일 때만 Camera 선택 화면을 제공합니다.
+
+분석 중 Camera Preview Panel은 현재 Temporal 상태를 색상으로도 보조 표시합니다. NORMAL과 COOLDOWN은 중립, CANDIDATE는 매우 약한 노랑, CAUTION은 노랑, WARNING은 빨강, RECOVERED는 초록 테두리와 Glow를 사용하며 기존 상태 Text는 항상 함께 유지합니다.
 
 ## Mode와 Rubric
 

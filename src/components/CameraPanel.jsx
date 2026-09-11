@@ -7,15 +7,16 @@ function PoseOverlay({ pose }) {
   );
 }
 
-function CameraPanel({ mode, scenario, inputMode, videoRef, visibility, evaluation, cameraPermission, cameraError, onCameraRetry }) {
+function CameraPanel({ mode, scenario, inputMode, videoRef, visibility, evaluation, temporalStatus, sessionState, cameraPermission, cameraError, onCameraRetry }) {
   return (
-    <section className="panel camera-panel focus-camera">
+    <section className={`panel camera-panel focus-camera posture-${temporalStatus.toLowerCase()}`}>
       <div className="panel-heading"><div><span className="eyebrow">현재 화면</span><h2>카메라 미리보기</h2></div><span className={`source-badge ${inputMode}`}>{inputMode === "live" ? "실제 영상 · 데모 분석" : "데모 분석"}</span></div>
       <div className={`preview ${!evaluation.available ? "visibility-warning" : ""}`}>
         {inputMode === "live" ? <video ref={videoRef} autoPlay muted playsInline /> : <div className="mock-scene" aria-label="데모 카메라 화면"><div className="mock-aura" /><div className="mock-person" /></div>}
         <div className={`guide-frame guide-${mode.id}`}><span>{mode.label} 구도</span></div><PoseOverlay pose={scenario.pose} /><span className="overlay-disclaimer">자세 포인트 · 데모</span>
         <div className="preview-meta"><span>가시성 {Math.round(visibility * 100)}%</span><span>{inputMode === "mock" ? scenario.label : "영상은 실제 · 분석값은 데모"}</span></div>
         {!evaluation.available && <div className="camera-guide-alert"><strong>카메라 조정이 필요합니다</strong><span>{evaluation.guide}</span></div>}
+        {inputMode === "live" && sessionState === "ended" && <div className="camera-session-ended">분석이 종료되었습니다.</div>}
       </div>
       {inputMode === "live" && cameraError && <div className="camera-inline-error"><span>{cameraError}</span><button type="button" onClick={onCameraRetry}>다시 시도</button></div>}
       {inputMode === "live" && !cameraError && cameraPermission !== "granted" && <p className="camera-wait">카메라 연결 상태 · {cameraPermission === "requesting" ? "권한 확인 중" : "연결 대기"}</p>}

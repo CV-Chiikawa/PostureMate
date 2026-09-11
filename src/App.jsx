@@ -49,8 +49,10 @@ function App() {
   const [temporal, setTemporal] = useState(INITIAL_TEMPORAL_STATE);
   const [stats, setStats] = useState(initialStats);
   const [logs, setLogs] = useState([]);
+  const [resultCueVisible, setResultCueVisible] = useState(false);
   const logIdRef = useRef(0);
   const lastTickRef = useRef(0);
+  const resultRef = useRef(null);
 
   const mode = MODES[modeId];
   const scenario = MOCK_SCENARIOS[scenarioIndex];
@@ -70,6 +72,7 @@ function App() {
     setTemporal({ ...INITIAL_TEMPORAL_STATE });
     setStats(initialStats());
     setLogs([]);
+    setResultCueVisible(false);
     lastTickRef.current = 0;
   }, []);
 
@@ -99,17 +102,30 @@ function App() {
     return () => window.clearInterval(timer);
   }, [sessionState, evaluation, addLog]);
 
+  useEffect(() => {
+    if (sessionState !== "ended" || !resultRef.current) return undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setResultCueVisible(false);
+    }, { threshold: 0.35 });
+    observer.observe(resultRef.current);
+    return () => observer.disconnect();
+  }, [sessionState]);
+
   const changeMode = (nextMode) => { if (nextMode !== modeId) { setModeId(nextMode); resetSession(); } };
   const changeRubric = (nextRubric) => { if (nextRubric !== rubric) { setRubric(nextRubric); resetSession(); } };
   const changeInputMode = (nextInputMode) => { setInputMode(nextInputMode); if (nextInputMode === "live") startCamera(cameraDeviceId); else stopCamera(); };
   const startSession = () => { resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); if (inputMode === "live") startCamera(cameraDeviceId); };
-  const endSession = () => { setSessionState("ended"); stopCamera(); addLog("세션", "분석 종료 · 카메라 연결 해제"); };
+  const endSession = () => { setSessionState("ended"); setResultCueVisible(true); stopCamera(); addLog("세션", "분석 종료 · 카메라 연결 해제"); };
   const closeGuide = (dontShowAgain) => {
     if (dontShowAgain) { try { saveGuideOptOutCookie(); } catch { /* Cookie 저장 불가 환경에서는 이번 화면에서만 닫는다. */ } }
     setShowGuide(false);
   };
 
   const phaseCopy = { idle: ["분석 대기", "설정을 확인하고 분석을 시작하세요."], running: ["분석 중", "현재 자세와 코칭을 확인하세요."], paused: ["일시정지", "분석이 잠시 멈춰 있습니다."], ended: ["분석 완료", "이번 세션의 결과를 확인하세요."] }[sessionState];
+  const scrollToResult = () => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    resultRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  };
 
   return (
     <div className="app-shell">
@@ -120,18 +136,19 @@ function App() {
       <main className="dashboard">
         <div className="analysis-heading"><div><span className="eyebrow">{phaseCopy[0]}</span><h2>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h2></div><span>{phaseCopy[1]} · {inputMode === "live" ? "실제 영상 / 데모 분석" : "데모 분석"}</span></div>
 
-        {sessionState === "ended" && <div className="dashboard-result"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /></div>}
-
-        <div className={`focus-layout ${sessionState === "ended" ? "after-session" : ""}`}>
-          <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} evaluation={evaluation} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
+        <div className="focus-layout">
+          <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} evaluation={evaluation} temporalStatus={temporal.status} sessionState={sessionState} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
           <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><CoachingPanel message={coachingMessage} /></aside>
         </div>
 
-        {sessionState !== "ended" && <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />}
+        <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
 
         <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
         <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>실제 MediaPipe, FastAPI, WebSocket, SOLAR 연동은 구현되지 않았습니다. 현재 자세 포인트, Feature와 코칭은 데모 데이터입니다.</p></footer>
       </main>
+
+      {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /></section>}
+      {sessionState === "ended" && <button className={`result-scroll-cue ${resultCueVisible ? "visible" : "hidden"}`} type="button" aria-controls="analysis-result" onClick={scrollToResult}><span className="result-scroll-cue-content"><b>분석 결과 보기</b><i aria-hidden="true">↓</i></span></button>}
     </div>
   );
 }

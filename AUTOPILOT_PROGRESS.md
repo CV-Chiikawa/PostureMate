@@ -1,7 +1,7 @@
 # 오토파일럿 진행 상태
 
 - 현재 브랜치: `posture-coach-demo`
-- 현재 단계: 단일 Dashboard 기반 UX 2차 개선 및 검증 완료
+- 현재 단계: 상태 시각 피드백 및 결과 탐색 UX 3차 개선 완료
 - 상태: 완료
 
 ## 완료
@@ -27,6 +27,10 @@
 - 비차단형 이동 가능 사용 안내와 자동 열림 해제 설정 구현
 - Mode·Rubric·입력 방식·Camera를 계층형 분석 설정으로 통합
 - 대기·분석·종료 상태를 하나의 Dashboard 작업 공간으로 통합
+- Temporal 상태별 Camera Panel Border·Glow 피드백 구현
+- Session Summary를 Main Dashboard 전체 아래의 독립 Section으로 이동
+- 분석 종료 시 우측 하단 Result Scroll Cue와 Smooth Scroll·Fade Out 구현
+- Reduced Motion 및 좁은 화면용 Result Cue 처리
 
 ## 다음 실제 통합 작업
 
@@ -52,7 +56,9 @@
 - 브라우저 핵심 흐름 및 Console 오류 0 확인
 - 비차단 사용 안내, 전역 메뉴, 계층형 분석 설정 확인
 - 모드별 Rubric 조건부 표시 및 분석 중 설정 잠금 확인
-- 대기 → 분석 → 동일 Dashboard 내 결과 흐름 확인
+- NORMAL, CANDIDATE, CAUTION, WARNING, RECOVERED Camera 상태 스타일 확인
+- 분석 종료 전후 Dashboard Panel 문서 위치 동일 확인
+- Dashboard 하단 Result 생성 및 Result Scroll Cue 표시·이동·숨김 확인
 - 상세 분석, Event Log, 시연 도구 접기/펼치기 확인
 
 ## 마지막 Checkpoint Commit
