@@ -244,8 +244,10 @@ footer p { margin: 0; max-width: 700px; color: var(--quiet); font-size: 8px; lin
 .guide-scope { display: grid; gap: 4px; margin: 0 15px; padding: 10px 11px; border-left: 2px solid var(--blue); background: rgba(120,168,255,.055); }
 .guide-scope b { color: var(--blue); font-size: 8px; }
 .guide-scope span { color: var(--muted); font-size: 8px; line-height: 1.4; }
-.dont-show { display: flex; align-items: center; gap: 7px; padding: 13px 15px 15px; color: var(--muted); font-size: 8px; }
+.guide-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 13px 15px 15px; }
+.dont-show { display: flex; align-items: center; gap: 7px; margin-right: auto; color: var(--muted); font-size: 8px; }
 .dont-show input { accent-color: var(--accent); }
+.guide-close { min-height: 32px; padding: 0 14px; }
 
 /* Hierarchical analysis settings */
 .settings-panel { position: fixed; z-index: 85; left: 20px; top: 80px; width: min(370px,calc(100vw - 40px)); overflow: hidden; border: 1px solid var(--line-light); border-radius: 14px; background: #101a1f; box-shadow: 0 24px 70px rgba(0,0,0,.52); }
