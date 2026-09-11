@@ -19,12 +19,24 @@ import { mockFeatureProvider } from "./services/MockFeatureProvider";
 import { evaluateContext } from "./utils/evaluator";
 import { advanceTemporalState, INITIAL_TEMPORAL_STATE } from "./utils/temporalEvent";
 
-const GUIDE_STORAGE_KEY = "posture-coach-hide-guide";
+const GUIDE_COOKIE_NAME = "posture-coach-hide-guide";
+const GUIDE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function hasGuideOptOutCookie() {
+  return document.cookie
+    .split("; ")
+    .some((cookie) => cookie === `${GUIDE_COOKIE_NAME}=true`);
+}
+
+function saveGuideOptOutCookie() {
+  document.cookie = `${GUIDE_COOKIE_NAME}=true; Max-Age=${GUIDE_COOKIE_MAX_AGE}; Path=/; SameSite=Lax`;
+}
+
 const initialStats = () => ({ caution: 0, warning: 0, recovered: 0, eventCounts: {}, issueDurations: {} });
 
 function App() {
   const [showGuide, setShowGuide] = useState(() => {
-    try { return window.localStorage.getItem(GUIDE_STORAGE_KEY) !== "true"; } catch { return true; }
+    try { return !hasGuideOptOutCookie(); } catch { return true; }
   });
   const [guideOpenedManually, setGuideOpenedManually] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -93,7 +105,7 @@ function App() {
   const startSession = () => { resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); if (inputMode === "live") startCamera(cameraDeviceId); };
   const endSession = () => { setSessionState("ended"); stopCamera(); addLog("세션", "분석 종료 · 카메라 연결 해제"); };
   const closeGuide = (dontShowAgain) => {
-    if (dontShowAgain) { try { window.localStorage.setItem(GUIDE_STORAGE_KEY, "true"); } catch { /* 저장 불가 환경에서는 이번 화면에서만 닫는다. */ } }
+    if (dontShowAgain) { try { saveGuideOptOutCookie(); } catch { /* Cookie 저장 불가 환경에서는 이번 화면에서만 닫는다. */ } }
     setShowGuide(false);
   };
 
