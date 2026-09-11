@@ -36,14 +36,14 @@ Webcam은 브라우저 보안 정책상 localhost 또는 HTTPS 환경에서 동�
 
 ## 사용자 흐름
 
-화면은 필요한 정보만 단계적으로 보여주는 네 단계 구조입니다.
+앱을 열면 별도 시작 화면 없이 대기 상태의 Dashboard가 바로 표시됩니다.
 
-1. **최초 안내:** 서비스 설명, 세 단계 사용법, 실제 기능과 데모 기능의 경계를 Modal로 확인합니다.
-2. **분석 준비:** Mode Popover, 모의면접 Rubric, 입력 방식, 필요한 경우 Camera Device와 구도를 선택합니다.
-3. **분석 진행:** Camera Preview, 현재 자세 상태와 Coaching을 우선 확인합니다. Raw Feature, Event Log와 Mock Scenario는 접힌 상세 영역에서 필요할 때만 엽니다.
-4. **분석 결과:** Session Summary를 확인하고 `다시 분석하기`로 준비 화면에 돌아갑니다.
+1. Header의 `☰ 메뉴`에서 `분석 설정`을 열어 Mode와 입력 방식을 확인합니다.
+2. Dashboard에서 Camera Preview, 현재 자세와 Coaching 영역을 확인하고 `분석 시작`을 누릅니다.
+3. 분석 중에는 같은 화면에서 상태, Coaching, Raw Feature와 Event Log를 확인합니다.
+4. 분석을 종료하면 같은 Dashboard 상단에 Session Summary가 나타납니다.
 
-Header의 `ⓘ 사용 안내`를 누르면 최초 안내를 다시 열 수 있습니다. 모의면접이 아닌 Mode에서는 Rubric을 숨기고, 데모 모드에서만 `시연 도구`를 제공합니다. 실제 카메라가 하나면 장치명만 표시하며 둘 이상일 때만 `카메라 변경` 메뉴가 나타납니다.
+최초 방문 시에는 화면 조작을 막지 않는 작은 `사용 안내` 패널이 자동으로 열립니다. 닫을 때 `다음부터 자동으로 열지 않기`를 선택할 수 있고, Header의 `☰ 메뉴 → 사용 안내`에서 언제든 다시 열 수 있습니다. 설정은 계층형 목록으로 제공하며 모의면접이 아닌 Mode에서는 Rubric을 숨기고, 데모 모드에서만 `시연 도구`를 제공합니다. 실제 카메라가 하나면 장치명만 표시하며 둘 이상일 때만 Camera 선택 화면을 제공합니다.
 
 ## Mode와 Rubric
 
@@ -117,7 +117,7 @@ specs/001-posture-coach-demo/
 
 ## Webcam 수동 확인
 
-1. `npm run dev`로 localhost를 열고 `실제 카메라`를 선택합니다.
+1. `npm run dev`로 localhost를 열고 `☰ 메뉴 → 분석 설정 → 입력 방식 → 실제 카메라`를 선택합니다.
 2. 브라우저 Camera 권한을 허용하고 Preview가 나타나는지 확인합니다.
 3. Camera Device가 여러 개면 Selector에서 변경해 Stream이 교체되는지 확인합니다.
 4. 권한을 차단했을 때 안내와 `다시 시도`가 표시되는지 확인합니다.

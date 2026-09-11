@@ -1,20 +1,40 @@
+import { useRef, useState } from "react";
+
 function WelcomeModal({ onClose }) {
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [position, setPosition] = useState(() => ({ x: Math.max(12, window.innerWidth - 410), y: 86 }));
+  const dragRef = useRef(null);
+
+  const beginDrag = (event) => {
+    dragRef.current = { x: event.clientX - position.x, y: event.clientY - position.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event) => {
+    if (!dragRef.current) return;
+    const width = 380;
+    setPosition({
+      x: Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX - dragRef.current.x)),
+      y: Math.max(72, Math.min(window.innerHeight - 120, event.clientY - dragRef.current.y)),
+    });
+  };
+
+  const endDrag = (event) => {
+    dragRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
   return (
-    <div className="modal-backdrop" role="presentation">
-      <section className="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-        <div className="welcome-mark" aria-hidden="true">PC</div>
-        <span className="eyebrow">CONTEXT-AWARE POSTURE COACH</span>
-        <h2 id="welcome-title">Context-Aware AI Posture Coach</h2>
-        <p className="welcome-lead">사용 상황에 따라 서로 다른 자세 기준을 적용하는 AI 자세 코칭 선행 데모입니다.</p>
-        <ol className="welcome-steps">
-          <li><b>1</b><span>사용할 모드를 선택합니다.</span></li>
-          <li><b>2</b><span>데모 모드 또는 실제 카메라를 선택합니다.</span></li>
-          <li><b>3</b><span>분석을 시작하고 자세 상태와 코칭을 확인합니다.</span></li>
-        </ol>
-        <div className="demo-scope"><strong>데모 범위 안내</strong><p>실제 카메라 영상은 사용할 수 있지만 현재 Pose 분석과 AI 코칭은 데모 데이터로 동작합니다.</p></div>
-        <button className="primary-button welcome-action" type="button" onClick={onClose} autoFocus>데모 시작하기</button>
-      </section>
-    </div>
+    <aside className="guide-popup" style={{ left: position.x, top: position.y }} role="dialog" aria-labelledby="guide-title">
+      <div className="guide-popup-header" onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={endDrag}>
+        <div><span className="eyebrow">사용 안내</span><strong id="guide-title">Context-Aware AI Posture Coach</strong></div>
+        <button type="button" aria-label="사용 안내 닫기" onPointerDown={(event) => event.stopPropagation()} onClick={() => onClose(dontShowAgain)}>×</button>
+      </div>
+      <p>상황에 따라 서로 다른 자세 기준을 적용하는 선행 데모입니다.</p>
+      <ol><li>메뉴에서 분석 설정을 확인하세요.</li><li>데모 모드 또는 실제 카메라를 선택하세요.</li><li>Dashboard에서 분석 시작을 누르세요.</li></ol>
+      <div className="guide-scope"><b>실제 영상 사용 가능</b><span>자세 분석과 코칭은 현재 데모 데이터로 동작합니다.</span></div>
+      <label className="dont-show"><input type="checkbox" checked={dontShowAgain} onChange={(event) => setDontShowAgain(event.target.checked)} /> 다음부터 자동으로 열지 않기</label>
+    </aside>
   );
 }
 export default WelcomeModal;

@@ -19,10 +19,14 @@ import { mockFeatureProvider } from "./services/MockFeatureProvider";
 import { evaluateContext } from "./utils/evaluator";
 import { advanceTemporalState, INITIAL_TEMPORAL_STATE } from "./utils/temporalEvent";
 
+const GUIDE_STORAGE_KEY = "posture-coach-hide-guide";
 const initialStats = () => ({ caution: 0, warning: 0, recovered: 0, eventCounts: {}, issueDurations: {} });
 
 function App() {
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showGuide, setShowGuide] = useState(() => {
+    try { return window.localStorage.getItem(GUIDE_STORAGE_KEY) !== "true"; } catch { return true; }
+  });
+  const [showSettings, setShowSettings] = useState(false);
   const [modeId, setModeId] = useState("interview");
   const [rubric, setRubric] = useState("A");
   const [inputMode, setInputMode] = useState("mock");
@@ -73,13 +77,7 @@ function App() {
           const eventType = next.eventType || previous.eventType;
           addLog(next.status, `${eventType || "posture"}${next.eventLabel ? ` · ${next.eventLabel}` : ""}`);
           if (["CAUTION", "WARNING", "RECOVERED"].includes(next.status)) {
-            setStats((current) => ({
-              ...current,
-              caution: current.caution + (next.status === "CAUTION" ? 1 : 0),
-              warning: current.warning + (next.status === "WARNING" ? 1 : 0),
-              recovered: current.recovered + (next.status === "RECOVERED" ? 1 : 0),
-              eventCounts: ["CAUTION", "WARNING"].includes(next.status) ? { ...current.eventCounts, [eventType]: (current.eventCounts[eventType] || 0) + 1 } : current.eventCounts,
-            }));
+            setStats((current) => ({ ...current, caution: current.caution + (next.status === "CAUTION" ? 1 : 0), warning: current.warning + (next.status === "WARNING" ? 1 : 0), recovered: current.recovered + (next.status === "RECOVERED" ? 1 : 0), eventCounts: ["CAUTION", "WARNING"].includes(next.status) ? { ...current.eventCounts, [eventType]: (current.eventCounts[eventType] || 0) + 1 } : current.eventCounts }));
           }
         }
         return next;
@@ -88,76 +86,40 @@ function App() {
     return () => window.clearInterval(timer);
   }, [sessionState, evaluation, addLog]);
 
-  const changeMode = (nextMode) => {
-    if (nextMode === modeId) return;
-    setModeId(nextMode);
-    resetSession();
+  const changeMode = (nextMode) => { if (nextMode !== modeId) { setModeId(nextMode); resetSession(); } };
+  const changeRubric = (nextRubric) => { if (nextRubric !== rubric) { setRubric(nextRubric); resetSession(); } };
+  const changeInputMode = (nextInputMode) => { setInputMode(nextInputMode); if (nextInputMode === "live") startCamera(cameraDeviceId); else stopCamera(); };
+  const startSession = () => { resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); if (inputMode === "live") startCamera(cameraDeviceId); };
+  const endSession = () => { setSessionState("ended"); stopCamera(); addLog("세션", "분석 종료 · 카메라 연결 해제"); };
+  const closeGuide = (dontShowAgain) => {
+    if (dontShowAgain) { try { window.localStorage.setItem(GUIDE_STORAGE_KEY, "true"); } catch { /* 저장 불가 환경에서는 이번 화면에서만 닫는다. */ } }
+    setShowGuide(false);
   };
 
-  const changeRubric = (nextRubric) => {
-    if (nextRubric === rubric) return;
-    setRubric(nextRubric);
-    resetSession();
-  };
-
-  const changeInputMode = (nextInputMode) => {
-    setInputMode(nextInputMode);
-    if (nextInputMode === "live") startCamera(cameraDeviceId);
-    else stopCamera();
-  };
-
-  const startSession = () => {
-    resetSession("running");
-    addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`);
-    if (inputMode === "live") startCamera(cameraDeviceId);
-  };
-
-  const endSession = () => {
-    setSessionState("ended");
-    stopCamera();
-    addLog("세션", "분석 종료 · 카메라 연결 해제");
-  };
-
-  const cameraProps = {
-    mode, scenario, inputMode, onInputModeChange: changeInputMode, videoRef,
-    cameraDevices, cameraDeviceId, onCameraDeviceChange: selectCameraDevice,
-    cameraPermission, cameraError, onCameraRetry: retryCamera,
-    visibility: featurePacket.values.landmark_visibility, evaluation,
-  };
+  const phaseCopy = { idle: ["분석 대기", "설정을 확인하고 분석을 시작하세요."], running: ["분석 중", "현재 자세와 코칭을 확인하세요."], paused: ["일시정지", "분석이 잠시 멈춰 있습니다."], ended: ["분석 완료", "이번 세션의 결과를 확인하세요."] }[sessionState];
 
   return (
     <div className="app-shell">
-      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
-      <Header mode={mode} sessionState={sessionState} inputMode={inputMode} onShowGuide={() => setShowWelcome(true)} />
+      {showGuide && <WelcomeModal onClose={closeGuide} />}
+      {showSettings && <ModeSelector modeId={modeId} rubric={rubric} inputMode={inputMode} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} cameraPermission={cameraPermission} onModeChange={changeMode} onRubricChange={changeRubric} onInputModeChange={changeInputMode} onCameraDeviceChange={selectCameraDevice} onClose={() => setShowSettings(false)} />}
+      <Header mode={mode} rubric={rubric} sessionState={sessionState} inputMode={inputMode} onShowGuide={() => setShowGuide(true)} onShowSettings={() => setShowSettings(true)} />
 
       <main className="dashboard">
-        {sessionState === "idle" && (
-          <section className="setup-stage">
-            <div className="stage-heading"><span className="stage-number">01</span><div><span className="eyebrow">분석 준비</span><h2>어떤 상황에서 자세를 확인할까요?</h2><p>분석 전에 필요한 항목만 선택하세요. 설정은 분석을 시작한 뒤 숨겨집니다.</p></div></div>
-            <div className="setup-layout">
-              <section className="panel setup-panel"><ModeSelector modeId={modeId} rubric={rubric} onModeChange={changeMode} onRubricChange={changeRubric} /><button className="primary-button start-action" type="button" onClick={startSession}>분석 시작 <span>→</span></button><small>언제든 분석을 종료할 수 있으며 영상은 저장되지 않습니다.</small></section>
-              <CameraPanel {...cameraProps} setup />
-            </div>
-          </section>
-        )}
+        <div className="analysis-heading"><div><span className="eyebrow">{phaseCopy[0]}</span><h2>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h2></div><span>{phaseCopy[1]} · {inputMode === "live" ? "실제 영상 / 데모 분석" : "데모 분석"}</span></div>
 
-        {(sessionState === "running" || sessionState === "paused") && (
-          <section className="analysis-stage">
-            <div className="analysis-heading"><div><span className="eyebrow">분석 진행</span><h2>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h2></div><span>{inputMode === "live" ? "실제 카메라 영상 / 자세 분석은 데모 데이터" : "데모 자세 데이터로 분석 중"}</span></div>
-            <div className="focus-layout"><CameraPanel {...cameraProps} /><aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><CoachingPanel message={coachingMessage} /></aside></div>
-            <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
-            <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
-          </section>
-        )}
+        {sessionState === "ended" && <div className="dashboard-result"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /></div>}
 
-        {sessionState === "ended" && (
-          <section className="result-stage"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /><EventLog logs={logs} /></section>
-        )}
+        <div className={`focus-layout ${sessionState === "ended" ? "after-session" : ""}`}>
+          <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} evaluation={evaluation} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
+          <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><CoachingPanel message={coachingMessage} /></aside>
+        </div>
 
+        {sessionState !== "ended" && <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />}
+
+        <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
         <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>실제 MediaPipe, FastAPI, WebSocket, SOLAR 연동은 구현되지 않았습니다. 현재 자세 포인트, Feature와 코칭은 데모 데이터입니다.</p></footer>
       </main>
     </div>
   );
 }
-
 export default App;

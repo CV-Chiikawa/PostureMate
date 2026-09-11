@@ -1,7 +1,7 @@
 # 오토파일럿 진행 상태
 
 - 현재 브랜치: `posture-coach-demo`
-- 현재 단계: Progressive Disclosure UI/UX 리팩터링 및 검증 완료
+- 현재 단계: 단일 Dashboard 기반 UX 2차 개선 및 검증 완료
 - 상태: 완료
 
 ## 완료
@@ -22,6 +22,11 @@
 - Camera·현재 상태·Coaching 중심 분석 화면 재구성
 - Raw Feature, Event Log, Mock Scenario를 접힘 상세 영역으로 이동
 - 결과 중심 Summary와 준비 화면 복귀 흐름 구현
+- 별도 Welcome·준비 화면을 제거하고 대기 상태 Dashboard 즉시 표시
+- Header 전역 기능을 `☰ 메뉴`의 사용 안내·분석 설정으로 통합
+- 비차단형 이동 가능 사용 안내와 자동 열림 해제 설정 구현
+- Mode·Rubric·입력 방식·Camera를 계층형 분석 설정으로 통합
+- 대기·분석·종료 상태를 하나의 Dashboard 작업 공간으로 통합
 
 ## 다음 실제 통합 작업
 
@@ -45,8 +50,9 @@
 - `npm run build` 성공
 - Context/Rubric/Visibility/Temporal 순수 로직 검증 성공
 - 브라우저 핵심 흐름 및 Console 오류 0 확인
-- Welcome Modal, Mode Popover, Rubric 조건부 표시 확인
-- 준비 → 분석 → 결과 → 다시 분석하기 흐름 확인
+- 비차단 사용 안내, 전역 메뉴, 계층형 분석 설정 확인
+- 모드별 Rubric 조건부 표시 및 분석 중 설정 잠금 확인
+- 대기 → 분석 → 동일 Dashboard 내 결과 흐름 확인
 - 상세 분석, Event Log, 시연 도구 접기/펼치기 확인
 
 ## 마지막 Checkpoint Commit
