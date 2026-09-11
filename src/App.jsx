@@ -26,6 +26,7 @@ function App() {
   const [showGuide, setShowGuide] = useState(() => {
     try { return window.localStorage.getItem(GUIDE_STORAGE_KEY) !== "true"; } catch { return true; }
   });
+  const [guideOpenedManually, setGuideOpenedManually] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [modeId, setModeId] = useState("interview");
   const [rubric, setRubric] = useState("A");
@@ -100,9 +101,9 @@ function App() {
 
   return (
     <div className="app-shell">
-      {showGuide && <WelcomeModal onClose={closeGuide} />}
+      {showGuide && <WelcomeModal onClose={closeGuide} showDontShowAgain={!guideOpenedManually} />}
       {showSettings && <ModeSelector modeId={modeId} rubric={rubric} inputMode={inputMode} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} cameraPermission={cameraPermission} onModeChange={changeMode} onRubricChange={changeRubric} onInputModeChange={changeInputMode} onCameraDeviceChange={selectCameraDevice} onClose={() => setShowSettings(false)} />}
-      <Header mode={mode} rubric={rubric} sessionState={sessionState} inputMode={inputMode} onShowGuide={() => setShowGuide(true)} onShowSettings={() => setShowSettings(true)} />
+      <Header mode={mode} rubric={rubric} sessionState={sessionState} inputMode={inputMode} onShowGuide={() => { setGuideOpenedManually(true); setShowGuide(true); }} onShowSettings={() => setShowSettings(true)} />
 
       <main className="dashboard">
         <div className="analysis-heading"><div><span className="eyebrow">{phaseCopy[0]}</span><h2>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h2></div><span>{phaseCopy[1]} · {inputMode === "live" ? "실제 영상 / 데모 분석" : "데모 분석"}</span></div>
