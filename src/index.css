@@ -1,45 +1,17 @@
-* {
-  box-sizing: border-box;
-}
-
-html {
-  min-width: 320px;
-  background: #080a0d;
-}
-
+* { box-sizing: border-box; }
+html { min-width: 320px; background: #070b0f; }
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-
-  font-family:
-    Inter,
-    Pretendard,
-    "Noto Sans KR",
-    "Malgun Gothic",
-    Arial,
-    sans-serif;
-
+  font-family: Inter, Pretendard, "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
   background:
-    radial-gradient(
-      circle at 50% -20%,
-      #1c2530 0%,
-      #0c1015 42%,
-      #07090c 80%
-    );
-
-  color: #f3f5f7;
+    radial-gradient(circle at 15% -15%, rgba(67, 209, 188, 0.12), transparent 32%),
+    radial-gradient(circle at 92% 8%, rgba(77, 128, 255, 0.1), transparent 28%),
+    #070b0f;
+  color: #edf4f3;
 }
-
-button,
-input {
-  font: inherit;
-}
-
-button {
-  border: 0;
-}
-
-#root {
-  min-height: 100vh;
-}
+button, input, select { font: inherit; }
+button { border: 0; }
+button:focus-visible, select:focus-visible { outline: 2px solid #64e5cf; outline-offset: 2px; }
+#root { min-height: 100vh; }
