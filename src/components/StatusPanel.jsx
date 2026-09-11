@@ -9,10 +9,13 @@ const stateCopy = {
 
 function StatusPanel({ temporal, evaluation }) {
   const copy = stateCopy[temporal.status];
+  const display = evaluation.available
+    ? { title: copy.title, code: temporal.status, description: copy.description }
+    : { title: "자세 분석 대기", code: "대기", description: "현재 자세 상태를 분석할 수 있는 데이터를 기다리고 있습니다." };
   return (
     <section className={`panel status-panel status-${temporal.status.toLowerCase()}`}>
-      <div className="panel-heading"><div><span className="eyebrow">현재 자세</span><h2>{evaluation.available ? copy.title : "카메라 구도를 확인해주세요"}</h2></div><span className="state-code">{evaluation.available ? temporal.status : "판정 불가"}</span></div>
-      <div className="status-message"><span className="status-pulse" /><div><p>{evaluation.available ? copy.description : evaluation.guide}</p>{evaluation.available && temporal.eventLabel && <strong>감지 항목 · {temporal.eventLabel}</strong>}</div></div>
+      <div className="panel-heading"><div><span className="eyebrow">현재 자세</span><h2>{display.title}</h2></div><span className="state-code">{display.code}</span></div>
+      <div className="status-message"><span className="status-pulse" /><div><p>{display.description}</p>{evaluation.available && temporal.eventLabel && <strong>감지 항목 · {temporal.eventLabel}</strong>}</div></div>
     </section>
   );
 }

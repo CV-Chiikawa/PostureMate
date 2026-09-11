@@ -4,6 +4,8 @@ function formatDuration(ms) {
 }
 
 function ControlPanel({ sessionState, elapsedMs, scenario, scenarioIndex, scenarioCount, inputMode, onStart, onPause, onResume, onEnd, onPrevious, onNext }) {
+  const scenarioLabel = scenario.id === "low-visibility" ? "내부 판정 보류" : scenario.label;
+  const scenarioDescription = scenario.id === "low-visibility" ? "입력 데이터가 충분하지 않을 때 상태 전환을 보류하는 내부 동작을 확인합니다." : scenario.description;
   return (
     <section className="session-toolbar">
       <div className="session-time"><span>{sessionState === "idle" ? "현재 상태" : "분석 시간"}</span><strong>{sessionState === "idle" ? "시작 전" : formatDuration(elapsedMs)}</strong></div>
@@ -14,7 +16,7 @@ function ControlPanel({ sessionState, elapsedMs, scenario, scenarioIndex, scenar
         {(sessionState === "running" || sessionState === "paused") && <button className="danger-button" onClick={onEnd}>분석 종료</button>}
         {sessionState === "ended" && <span className="session-ended-label">분석 종료됨</span>}
       </div>
-      {inputMode === "mock" && sessionState !== "ended" && <details className="demo-tools"><summary>시연 도구</summary><div><span>현재 자세 상황 · {scenarioIndex + 1}/{scenarioCount}</span><strong>{scenario.label}</strong><p>{scenario.description}</p><div><button type="button" aria-label="이전 자세 상황" onClick={onPrevious}>이전 상황</button><button type="button" aria-label="다음 자세 상황" onClick={onNext}>다음 자세 상황</button></div></div></details>}
+      {inputMode === "mock" && sessionState !== "ended" && <details className="demo-tools"><summary>시연 도구</summary><div><span>현재 자세 상황 · {scenarioIndex + 1}/{scenarioCount}</span><strong>{scenarioLabel}</strong><p>{scenarioDescription}</p><div><button type="button" aria-label="이전 자세 상황" onClick={onPrevious}>이전 상황</button><button type="button" aria-label="다음 자세 상황" onClick={onNext}>다음 자세 상황</button></div></div></details>}
     </section>
   );
 }

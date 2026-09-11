@@ -26,7 +26,7 @@ function FeaturePanel({ featurePacket, evaluation, scenario, mode }) {
           <div className="rule-summary"><span>현재 평가 기준</span><strong>{mode.label}</strong><p>{mode.description}</p></div>
           <div className="feature-list">{rawFeatures.map((feature) => {
             const result = resultMap[feature];
-            const state = feature === "landmark_visibility" ? evaluation.available ? "허용" : "부족" : !result?.active ? "평가 제외" : result.isIssue ? "범위 이탈" : "허용";
+            const state = feature === "landmark_visibility" ? "데모 값" : !result?.active ? "평가 제외" : result.isIssue ? "범위 이탈" : "허용";
             return <div className="feature-row" key={feature}><div><strong>{FEATURE_LABELS[feature]}</strong><small>{feature}</small></div><span>{state}</span><b>{formatValue(feature, featurePacket.values[feature])}</b></div>;
           })}</div>
           {scenario.id === "shared-sway" && <div className="context-proof"><span className="eyebrow">같은 BODY_SWAY = 0.130의 상황별 평가</span><div><p><b>{MODES.interview.label}</b><span>주의 대상</span></p><p><b>{MODES.neck.label}</b><span>평가 제외</span></p><p><b>{MODES.presentation.label}</b><span>허용 범위</span></p></div></div>}

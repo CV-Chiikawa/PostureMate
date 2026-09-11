@@ -30,7 +30,7 @@ Webcam은 브라우저 보안 정책상 localhost 또는 HTTPS 환경에서 동�
 - Camera Permission, Device Enumeration, Device Selector, 오류와 Stream 정리
 - Shared Pose Feature와 Context Evaluator 분리
 - NORMAL → CANDIDATE → CAUTION → WARNING → RECOVERED → COOLDOWN 상태 전환
-- Landmark Visibility 부족 시 판정 중지와 Camera Guide 표시
+- Landmark Visibility 부족 시 사용자 경고 없이 내부 판정 중지
 - Mock Coaching, Event Log, Session Summary
 - 동일 `body_sway` 값의 Mode별 평가 차이를 보여주는 Context 비교 Scenario
 
