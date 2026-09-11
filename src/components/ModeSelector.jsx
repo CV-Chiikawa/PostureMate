@@ -1,22 +1,33 @@
+import { useState } from "react";
 import { MODES, RUBRICS } from "../config/modes";
 
-function ModeSelector({ modeId, rubric, onModeChange, onRubricChange }) {
+function ChoicePopover({ label, value, open, onToggle, children }) {
   return (
-    <section className="mode-section" aria-labelledby="mode-title">
-      <div className="section-intro"><span className="eyebrow">01 · SELECT CONTEXT</span><h2 id="mode-title">같은 자세도 상황에 따라 다르게 봅니다</h2><p>Feature 원본은 공유하고, 선택한 사용 상황의 Evaluator가 허용 범위와 지속시간을 결정합니다.</p></div>
-      <div className="mode-grid">
-        {Object.values(MODES).map((mode, index) => (
-          <button key={mode.id} type="button" className={`mode-card ${mode.id === modeId ? "selected" : ""}`} onClick={() => onModeChange(mode.id)} aria-pressed={mode.id === modeId}>
-            <span className="mode-number">0{index + 1}</span><strong>{mode.label}</strong><small>{mode.description}</small>
-          </button>
-        ))}
-      </div>
+    <div className="choice-field">
+      <span>{label}</span>
+      <button className="choice-trigger" type="button" onClick={onToggle} aria-expanded={open}><strong>{value}</strong><i>▾</i></button>
+      {open && <div className="choice-menu" role="menu">{children}</div>}
+    </div>
+  );
+}
+
+function ModeSelector({ modeId, rubric, onModeChange, onRubricChange }) {
+  const [modeOpen, setModeOpen] = useState(false);
+  const [rubricOpen, setRubricOpen] = useState(false);
+  const mode = MODES[modeId];
+
+  return (
+    <div className="setup-choices">
+      <ChoicePopover label="사용 모드" value={mode.label} open={modeOpen} onToggle={() => { setModeOpen((current) => !current); setRubricOpen(false); }}>
+        {Object.values(MODES).map((item) => <button type="button" role="menuitem" key={item.id} className={item.id === modeId ? "selected" : ""} onClick={() => { onModeChange(item.id); setModeOpen(false); }}><strong>{item.label}</strong><small>{item.description}</small></button>)}
+      </ChoicePopover>
       {modeId === "interview" && (
-        <div className="rubric-row"><span>INTERVIEW RUBRIC</span>{Object.entries(RUBRICS).map(([id, item]) => (
-          <button type="button" key={id} className={rubric === id ? "selected" : ""} onClick={() => onRubricChange(id)} aria-pressed={rubric === id}><strong>{item.label}</strong><small>{item.description}</small></button>
-        ))}</div>
+        <ChoicePopover label="자세 기준" value={`기준 ${rubric}`} open={rubricOpen} onToggle={() => { setRubricOpen((current) => !current); setModeOpen(false); }}>
+          {Object.entries(RUBRICS).map(([id, item]) => <button type="button" role="menuitem" key={id} className={id === rubric ? "selected" : ""} onClick={() => { onRubricChange(id); setRubricOpen(false); }}><strong>기준 {id}</strong><small>{item.description}</small></button>)}
+        </ChoicePopover>
       )}
-    </section>
+      <div className="mode-summary"><span>선택한 평가 방식</span><p>{mode.description}</p></div>
+    </div>
   );
 }
 export default ModeSelector;

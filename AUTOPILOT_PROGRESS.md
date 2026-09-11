@@ -1,7 +1,7 @@
 # 오토파일럿 진행 상태
 
 - 현재 브랜치: `posture-coach-demo`
-- 현재 단계: 전체 구현 및 검증 완료
+- 현재 단계: Progressive Disclosure UI/UX 리팩터링 및 검증 완료
 - 상태: 완료
 
 ## 완료
@@ -16,6 +16,12 @@
 - Dashboard, Demo Coaching, Event Log, Session Summary 구현
 - AutoDirector 전용 다중 카메라·점수·자동 전환 모듈 제거
 - README 및 반응형 UI 보완
+- Welcome Modal과 사용 안내 다시 열기 구현
+- 분석 준비 / 분석 진행 / 분석 결과 화면 분리
+- Mode 및 Rubric Popover와 조건부 설정 UI 구현
+- Camera·현재 상태·Coaching 중심 분석 화면 재구성
+- Raw Feature, Event Log, Mock Scenario를 접힘 상세 영역으로 이동
+- 결과 중심 Summary와 준비 화면 복귀 흐름 구현
 
 ## 다음 실제 통합 작업
 
@@ -39,8 +45,12 @@
 - `npm run build` 성공
 - Context/Rubric/Visibility/Temporal 순수 로직 검증 성공
 - 브라우저 핵심 흐름 및 Console 오류 0 확인
+- Welcome Modal, Mode Popover, Rubric 조건부 표시 확인
+- 준비 → 분석 → 결과 → 다시 분석하기 흐름 확인
+- 상세 분석, Event Log, 시연 도구 접기/펼치기 확인
 
 ## 마지막 Checkpoint Commit
 
 - `9190144 docs: define posture coach demo specification`
 - `feat: build context-aware posture coach web demo` (최종 구현 커밋)
+- `feat: simplify posture coach demo experience` (UI/UX 개선 커밋)

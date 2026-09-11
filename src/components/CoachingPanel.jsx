@@ -1,9 +1,8 @@
-function CoachingPanel({ message, temporal, mode }) {
+function CoachingPanel({ message }) {
   return (
     <section className="panel coaching-panel">
-      <div className="panel-heading"><div><span className="eyebrow">DEMO COACHING · MOCK PROVIDER</span><h2>EXPLAINABLE FEEDBACK</h2></div><span className="coaching-source">NOT SOLAR</span></div>
+      <div className="panel-heading"><div><span className="eyebrow">데모 코칭 · SOLAR 미연동</span><h2>지금 이렇게 해보세요</h2></div></div>
       <blockquote><span aria-hidden="true">“</span><p>{message}</p></blockquote>
-      <div className="coaching-evidence"><span>CONTEXT <b>{mode.label}</b></span><span>EVENT <b>{temporal.eventType || "none"}</b></span><span>STATE <b>{temporal.status}</b></span></div>
     </section>
   );
 }

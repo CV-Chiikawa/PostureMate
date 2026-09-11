@@ -44,7 +44,7 @@ export function useCamera() {
       const denied = cameraError?.name === "NotAllowedError" || cameraError?.name === "SecurityError";
       setPermission(denied ? "denied" : "error");
       setError(denied
-        ? "카메라 권한이 거부되었습니다. 브라우저 설정을 확인하거나 MOCK을 사용하세요."
+        ? "카메라 권한이 거부되었습니다. 브라우저 설정을 확인하거나 데모 모드를 사용하세요."
         : `카메라를 시작하지 못했습니다: ${cameraError?.message || "알 수 없는 오류"}`);
     }
   }, [stop]);

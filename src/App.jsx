@@ -10,6 +10,7 @@ import Header from "./components/Header";
 import ModeSelector from "./components/ModeSelector";
 import SessionSummary from "./components/SessionSummary";
 import StatusPanel from "./components/StatusPanel";
+import WelcomeModal from "./components/WelcomeModal";
 import { MODES } from "./config/modes";
 import { MOCK_SCENARIOS } from "./data/mockScenarios";
 import { useCamera } from "./hooks/useCamera";
@@ -21,6 +22,7 @@ import { advanceTemporalState, INITIAL_TEMPORAL_STATE } from "./utils/temporalEv
 const initialStats = () => ({ caution: 0, warning: 0, recovered: 0, eventCounts: {}, issueDurations: {} });
 
 function App() {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [modeId, setModeId] = useState("interview");
   const [rubric, setRubric] = useState("A");
   const [inputMode, setInputMode] = useState("mock");
@@ -41,12 +43,7 @@ function App() {
   const coachingMessage = mockCoachingProvider.getMessage(temporal, mode);
 
   const addLog = useCallback((status, message) => {
-    const entry = {
-      id: logIdRef.current++,
-      time: new Date().toLocaleTimeString("ko-KR", { hour12: false }),
-      status,
-      message,
-    };
+    const entry = { id: logIdRef.current++, time: new Date().toLocaleTimeString("ko-KR", { hour12: false }), status, message };
     setLogs((current) => [...current, entry].slice(-24));
   }, []);
 
@@ -70,23 +67,18 @@ function App() {
       setTemporal((previous) => {
         const next = advanceTemporalState(previous, evaluation, now);
         if (["CAUTION", "WARNING"].includes(previous.status) && previous.eventType) {
-          setStats((current) => ({
-            ...current,
-            issueDurations: { ...current.issueDurations, [previous.eventType]: (current.issueDurations[previous.eventType] || 0) + delta },
-          }));
+          setStats((current) => ({ ...current, issueDurations: { ...current.issueDurations, [previous.eventType]: (current.issueDurations[previous.eventType] || 0) + delta } }));
         }
         if (next.status !== previous.status) {
           const eventType = next.eventType || previous.eventType;
           addLog(next.status, `${eventType || "posture"}${next.eventLabel ? ` · ${next.eventLabel}` : ""}`);
-          if (next.status === "CAUTION" || next.status === "WARNING" || next.status === "RECOVERED") {
+          if (["CAUTION", "WARNING", "RECOVERED"].includes(next.status)) {
             setStats((current) => ({
               ...current,
               caution: current.caution + (next.status === "CAUTION" ? 1 : 0),
               warning: current.warning + (next.status === "WARNING" ? 1 : 0),
               recovered: current.recovered + (next.status === "RECOVERED" ? 1 : 0),
-              eventCounts: next.status === "CAUTION" || next.status === "WARNING"
-                ? { ...current.eventCounts, [eventType]: (current.eventCounts[eventType] || 0) + 1 }
-                : current.eventCounts,
+              eventCounts: ["CAUTION", "WARNING"].includes(next.status) ? { ...current.eventCounts, [eventType]: (current.eventCounts[eventType] || 0) + 1 } : current.eventCounts,
             }));
           }
         }
@@ -108,57 +100,61 @@ function App() {
     resetSession();
   };
 
-  const startSession = () => {
-    resetSession("running");
-    addLog("SESSION", `START · ${mode.label}${modeId === "interview" ? ` · Rubric ${rubric}` : ""}`);
-    if (inputMode === "live") startCamera(cameraDeviceId);
-  };
-
-  const pauseSession = () => {
-    setSessionState("paused");
-    addLog("SESSION", "PAUSE");
-  };
-
-  const resumeSession = () => {
-    setSessionState("running");
-    addLog("SESSION", "RESUME");
-  };
-
-  const endSession = () => {
-    setSessionState("ended");
-    stopCamera();
-    addLog("SESSION", "END · Camera stream released");
-  };
-
   const changeInputMode = (nextInputMode) => {
     setInputMode(nextInputMode);
     if (nextInputMode === "live") startCamera(cameraDeviceId);
     else stopCamera();
   };
 
+  const startSession = () => {
+    resetSession("running");
+    addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`);
+    if (inputMode === "live") startCamera(cameraDeviceId);
+  };
+
+  const endSession = () => {
+    setSessionState("ended");
+    stopCamera();
+    addLog("세션", "분석 종료 · 카메라 연결 해제");
+  };
+
+  const cameraProps = {
+    mode, scenario, inputMode, onInputModeChange: changeInputMode, videoRef,
+    cameraDevices, cameraDeviceId, onCameraDeviceChange: selectCameraDevice,
+    cameraPermission, cameraError, onCameraRetry: retryCamera,
+    visibility: featurePacket.values.landmark_visibility, evaluation,
+  };
+
   return (
     <div className="app-shell">
-      <Header mode={mode} rubric={rubric} sessionState={sessionState} inputMode={inputMode} cameraPermission={cameraPermission} />
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+      <Header mode={mode} sessionState={sessionState} inputMode={inputMode} onShowGuide={() => setShowWelcome(true)} />
+
       <main className="dashboard">
-        <section className="hero-copy">
-          <div><span className="hero-kicker">CONTEXT-AWARE AI POSTURE COACH — WEB DEMO</span><h2>Shared Pose Features.<br /><em>Different context, different meaning.</em></h2></div>
-          <p>하나의 자세 값을 상황별 기준으로 해석하고, 지속되는 변화만 단계적인 이벤트로 바꿉니다. 이 화면의 자세 분석과 코칭은 선행 검증용 Mock입니다.</p>
-        </section>
+        {sessionState === "idle" && (
+          <section className="setup-stage">
+            <div className="stage-heading"><span className="stage-number">01</span><div><span className="eyebrow">분석 준비</span><h2>어떤 상황에서 자세를 확인할까요?</h2><p>분석 전에 필요한 항목만 선택하세요. 설정은 분석을 시작한 뒤 숨겨집니다.</p></div></div>
+            <div className="setup-layout">
+              <section className="panel setup-panel"><ModeSelector modeId={modeId} rubric={rubric} onModeChange={changeMode} onRubricChange={changeRubric} /><button className="primary-button start-action" type="button" onClick={startSession}>분석 시작 <span>→</span></button><small>언제든 분석을 종료할 수 있으며 영상은 저장되지 않습니다.</small></section>
+              <CameraPanel {...cameraProps} setup />
+            </div>
+          </section>
+        )}
 
-        <ModeSelector modeId={modeId} rubric={rubric} onModeChange={changeMode} onRubricChange={changeRubric} />
+        {(sessionState === "running" || sessionState === "paused") && (
+          <section className="analysis-stage">
+            <div className="analysis-heading"><div><span className="eyebrow">분석 진행</span><h2>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h2></div><span>{inputMode === "live" ? "실제 카메라 영상 / 자세 분석은 데모 데이터" : "데모 자세 데이터로 분석 중"}</span></div>
+            <div className="focus-layout"><CameraPanel {...cameraProps} /><aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><CoachingPanel message={coachingMessage} /></aside></div>
+            <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
+            <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
+          </section>
+        )}
 
-        {sessionState === "ended" && <SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={startSession} />}
+        {sessionState === "ended" && (
+          <section className="result-stage"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /><EventLog logs={logs} /></section>
+        )}
 
-        <div className="analysis-grid">
-          <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} onInputModeChange={changeInputMode} videoRef={videoRef} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} onCameraDeviceChange={selectCameraDevice} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} visibility={featurePacket.values.landmark_visibility} evaluation={evaluation} />
-          <FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} />
-          <StatusPanel temporal={temporal} evaluation={evaluation} />
-          <CoachingPanel message={coachingMessage} temporal={temporal} mode={mode} />
-          <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} onStart={startSession} onPause={pauseSession} onResume={resumeSession} onEnd={endSession} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
-          <EventLog logs={logs} />
-        </div>
-
-        <footer><span>WEB DEMO · NO VIDEO STORAGE</span><p>실제 MediaPipe, FastAPI, WebSocket, SOLAR 연동은 구현되지 않았습니다. 관찰 가능한 자세 Feature만 표현하며 의료적 판단을 제공하지 않습니다.</p></footer>
+        <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>실제 MediaPipe, FastAPI, WebSocket, SOLAR 연동은 구현되지 않았습니다. 현재 자세 포인트, Feature와 코칭은 데모 데이터입니다.</p></footer>
       </main>
     </div>
   );

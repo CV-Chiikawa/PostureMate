@@ -61,15 +61,15 @@ export const TEMPORAL_CONFIG = {
 };
 
 export const FEATURE_LABELS = {
-  head_tilt: "Head Tilt",
-  shoulder_height_difference: "Shoulder Balance",
-  torso_lean: "Torso Lean",
-  forward_head_proxy: "Forward Head Proxy",
-  body_sway: "Body Sway",
-  face_or_body_direction: "Body Direction",
-  left_hand_region: "Left Hand Region",
-  right_hand_region: "Right Hand Region",
-  knee_distance: "Knee Distance",
-  landmark_visibility: "Landmark Visibility",
-  hand_placement: "Hand Placement",
+  head_tilt: "머리 좌우 기울기",
+  shoulder_height_difference: "어깨 균형",
+  torso_lean: "상체 기울기",
+  forward_head_proxy: "머리 전방 변화",
+  body_sway: "몸 흔들림",
+  face_or_body_direction: "몸 방향",
+  left_hand_region: "왼손 위치",
+  right_hand_region: "오른손 위치",
+  knee_distance: "무릎 사이 거리",
+  landmark_visibility: "신체 포인트 가시성",
+  hand_placement: "손·무릎 배치",
 };
