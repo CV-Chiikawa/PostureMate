@@ -21,6 +21,22 @@ npm run preview
 
 Webcam은 브라우저 보안 정책상 localhost 또는 HTTPS 환경에서 동작합니다.
 
+## 로컬 프레임 전송 검증
+
+이 단계는 실제 영상에서 JPEG 프레임을 추출해 임시 FastAPI 서버가 수신하는지 검증합니다. 서버 응답은 영수증 역할만 하며 자세 판단·코칭에 사용하지 않습니다.
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+```
+
+다른 터미널에서 `npm run dev`를 실행하고 `실제 카메라`를 선택한 뒤 `분석 시작`을 누릅니다. 기본 개발 URL은 `http://127.0.0.1:8000`이며 `.env.example`의 `VITE_ANALYSIS_API_BASE_URL`을 `.env.local`에 설정해 교체할 수 있습니다. 배포 빌드에 주소가 없으면 프레임 전송만 비활성화되고 기존 데모는 작동합니다. FastAPI는 개발 Origin `localhost:5173`과 `127.0.0.1:5173`만 기본 허용합니다. 포트가 다르면 `FRAME_DEMO_CORS_ORIGINS` 환경변수에 명시합니다.
+
+기본 설정은 `src/config/frameSampling.js`의 5 FPS, JPEG Quality 0.8, 요청 Timeout 3초입니다. `useFrameSampler`가 `<video>`를 화면에 표시하지 않는 Canvas로 캡처하고 `AnalysisClient`가 `multipart/form-data`의 `file`, `session_id`, `mode`, `rubric`을 `POST /process-frame`에 전송합니다. 이전 요청이 끝나지 않으면 다음 프레임은 건너뛰며, 일시정지·종료 시 Timer와 요청을 정리합니다. 서버는 프레임을 저장하지 않고 JPEG 형식·크기·해상도만 검증합니다.
+
+서버를 켠 상태에서 Endpoint만 확인하려면 `.venv\Scripts\python.exe -m backend.test_transport`를 실행합니다. 이 테스트는 합성 JPEG를 전송합니다. 실제 웹캠 프레임 수신은 브라우저 카메라 권한을 허용한 환경에서 별도 확인해야 합니다.
+
 ## 주요 기능
 
 - 모의면접, 거북목 방지, 발표 Mode 선택
@@ -64,6 +80,7 @@ Webcam은 브라우저 보안 정책상 localhost 또는 HTTPS 환경에서 동�
 - React UI와 상태 기반 사용자 흐름
 - 브라우저 Webcam 권한 요청과 Camera Device 선택
 - 실제 Camera Preview
+- 실제 Webcam JPEG 프레임 샘플링과 임시 FastAPI 수신 검증
 - Session Start, Pause, Resume, End
 - Context Evaluator와 Temporal State Machine
 - Event Log와 Session Summary
@@ -86,7 +103,7 @@ Webcam은 브라우저 보안 정책상 localhost 또는 HTTPS 환경에서 동�
 - JavaScript 기반 Provider / Evaluator / Temporal State Machine
 - CSS 반응형 Dashboard
 
-새 Backend나 Runtime Dependency가 없어 기존 Vercel 정적 배포 구조를 유지합니다.
+FastAPI는 로컬 전송 검증용 선택 서버입니다. React/Vite 정적 빌드는 기존 Vercel 구조를 유지하며, 배포에서 서버를 자동 제공하지 않습니다.
 
 ## 디렉터리 구조
 
@@ -96,8 +113,10 @@ src/
 ├─ config/      Mode별 조건과 데모 시간 설정
 ├─ data/        Mock Scenario
 ├─ hooks/       Webcam Stream 생명주기
-├─ services/    Mock Feature/Coaching Provider
+├─ services/    Mock Provider와 프레임 전송 Client
 └─ utils/       Context Evaluator와 Temporal State Machine
+
+backend/        임시 FastAPI 프레임 수신 서버와 전송 테스트
 
 specs/001-posture-coach-demo/
 ├─ specification.md
@@ -113,6 +132,7 @@ specs/001-posture-coach-demo/
 
 - Webcam Preview는 코드 경로와 UI 오류 처리를 구현했지만 Camera Device·권한 조합은 사용자 환경에서 수동 확인이 필요합니다.
 - Live Video는 실제 Pose 분석에 사용되지 않습니다.
+- 임시 FastAPI는 프레임 수신만 확인하며 실제 영상 분석·응답 기반 자세 상태 갱신은 하지 않습니다.
 - Mock Threshold는 실제 사용자 영상으로 조정되지 않았습니다.
 - 세션 결과는 브라우저 메모리에만 유지하며 새로고침하면 사라집니다.
 - 의료 진단, 감정·긴장·자신감 분석, 면접 합격 가능성, 발표 능력 점수, 음성·발표 내용 평가는 범위 밖입니다.

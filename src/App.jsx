@@ -14,6 +14,7 @@ import WelcomeModal from "./components/WelcomeModal";
 import { MODES } from "./config/modes";
 import { MOCK_SCENARIOS } from "./data/mockScenarios";
 import { useCamera } from "./hooks/useCamera";
+import { useFrameSampler } from "./hooks/useFrameSampler";
 import { mockCoachingProvider } from "./services/MockCoachingProvider";
 import { mockFeatureProvider } from "./services/MockFeatureProvider";
 import { evaluateContext } from "./utils/evaluator";
@@ -45,6 +46,7 @@ function App() {
   const [inputMode, setInputMode] = useState("mock");
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [sessionState, setSessionState] = useState("idle");
+  const [frameSessionId, setFrameSessionId] = useState("");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [temporal, setTemporal] = useState(INITIAL_TEMPORAL_STATE);
   const [stats, setStats] = useState(initialStats);
@@ -59,6 +61,13 @@ function App() {
   const featurePacket = useMemo(() => mockFeatureProvider.getFeatures(scenarioIndex), [scenarioIndex]);
   const evaluation = useMemo(() => evaluateContext(featurePacket, modeId, rubric), [featurePacket, modeId, rubric]);
   const { videoRef, devices: cameraDevices, deviceId: cameraDeviceId, selectDevice: selectCameraDevice, permission: cameraPermission, error: cameraError, start: startCamera, retry: retryCamera, stop: stopCamera } = useCamera();
+  useFrameSampler({
+    videoRef,
+    enabled: inputMode === "live" && sessionState === "running" && cameraPermission === "granted",
+    sessionId: frameSessionId,
+    mode: modeId,
+    rubric: modeId === "interview" ? rubric : "",
+  });
   const coachingMessage = mockCoachingProvider.getMessage(temporal, mode);
 
   const addLog = useCallback((status, message) => {
@@ -114,7 +123,7 @@ function App() {
   const changeMode = (nextMode) => { if (nextMode !== modeId) { setModeId(nextMode); resetSession(); } };
   const changeRubric = (nextRubric) => { if (nextRubric !== rubric) { setRubric(nextRubric); resetSession(); } };
   const changeInputMode = (nextInputMode) => { setInputMode(nextInputMode); if (nextInputMode === "live") startCamera(cameraDeviceId); else stopCamera(); };
-  const startSession = () => { resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); if (inputMode === "live") startCamera(cameraDeviceId); };
+  const startSession = () => { setFrameSessionId(crypto.randomUUID()); resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); if (inputMode === "live") startCamera(cameraDeviceId); };
   const endSession = () => { setSessionState("ended"); setResultCueVisible(true); stopCamera(); addLog("세션", "분석 종료 · 카메라 연결 해제"); };
   const closeGuide = (dontShowAgain) => {
     if (dontShowAgain) { try { saveGuideOptOutCookie(); } catch { /* Cookie 저장 불가 환경에서는 이번 화면에서만 닫는다. */ } }
@@ -144,7 +153,7 @@ function App() {
         <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
 
         <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
-        <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>실제 MediaPipe, FastAPI, WebSocket, SOLAR 연동은 구현되지 않았습니다. 현재 자세 포인트, Feature와 코칭은 데모 데이터입니다.</p></footer>
+        <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신만 검증합니다. MediaPipe, 정식 분석, WebSocket, SOLAR는 미연동이며 현재 자세 포인트, Feature와 코칭은 데모 데이터입니다.</p></footer>
       </main>
 
       {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /></section>}

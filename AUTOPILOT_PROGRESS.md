@@ -1,8 +1,8 @@
 # 오토파일럿 진행 상태
 
 - 현재 브랜치: `posture-coach-demo`
-- 현재 단계: 상태 시각 피드백 및 결과 탐색 UX 3차 개선 완료
-- 상태: 완료
+- 현재 단계: Webcam 프레임 샘플링·임시 FastAPI 전송 파이프라인 구현
+- 상태: 코드와 서버 수신 검증 완료, 물리 Webcam 종단 간 검증 대기
 
 ## 완료
 
@@ -31,6 +31,9 @@
 - Session Summary를 Main Dashboard 전체 아래의 독립 Section으로 이동
 - 분석 종료 시 우측 하단 Result Scroll Cue와 Smooth Scroll·Fade Out 구현
 - Reduced Motion 및 좁은 화면용 Result Cue 처리
+- 5 FPS JPEG FrameSampler, in-flight 건너뛰기 및 취소 가능한 HTTP Transport 구현
+- 임시 FastAPI `/health`, `/process-frame`과 최소 CORS 구현
+- Mock 분석과 독립된 실영상 프레임 수신 검증 경로 추가
 
 ## 다음 실제 통합 작업
 
@@ -42,7 +45,7 @@
 ## 알려진 오류
 
 - 물리 Webcam Permission과 여러 Camera Device 전환은 사용자 환경에서 수동 확인 필요
-- 실제 CV, Backend, SOLAR는 의도적으로 Mock/미구현 상태
+- 실제 CV, 정식 Backend 분석, SOLAR는 의도적으로 Mock/미구현 상태; 임시 FastAPI는 프레임 수신만 확인
 
 ## 보류된 핵심 결정
 
@@ -52,6 +55,10 @@
 
 - `npm run lint` 성공
 - `npm run build` 성공
+- FastAPI 실서버 `GET /health` 200, CORS preflight 200 확인
+- 합성 JPEG `POST /process-frame` 200 및 320×180·1,589 bytes·세션/모드/루브릭 수신 확인
+- Mock 모드 시작·일시정지·재개·종료 및 Backend 비가동 시 UI 유지 확인
+- 물리 Webcam에서 브라우저→FastAPI 종단 간 전송은 권한 승인 후 수동 확인 필요
 - Context/Rubric/Visibility/Temporal 순수 로직 검증 성공
 - 브라우저 핵심 흐름 및 Console 오류 0 확인
 - 비차단 사용 안내, 전역 메뉴, 계층형 분석 설정 확인
