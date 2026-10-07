@@ -18,7 +18,7 @@ function captureJpeg(video, canvas, quality) {
   });
 }
 
-export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric }) {
+export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, onAnalysisResult }) {
   useEffect(() => {
     if (!enabled || !sessionId || !ANALYSIS_API_BASE_URL) return undefined;
 
@@ -44,9 +44,10 @@ export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric }) 
         if (!active || !frame) return;
         metrics.frames += 1;
         const receipt = await sendFrame({ blob: frame.blob, sessionId, mode, rubric, signal: controller.signal });
+        if (active && receipt?.analysis?.sessionId === sessionId) onAnalysisResult?.(receipt.analysis);
         if (active && receipt && now - metrics.lastLogAt >= FRAME_SAMPLING.logIntervalMs) {
           console.info("[FrameSampler]", { frame: metrics.frames, targetFps: FRAME_SAMPLING.fps, actualIntervalMs, resolution: `${frame.width}x${frame.height}`, jpegBytes: frame.blob.size, skipped: metrics.skipped, errors: metrics.errors });
-          console.info("[AnalysisTransport]", { status: receipt.status, rttMs: receipt.rttMs, serverReceived: receipt.data.frame_received });
+          console.info("[AnalysisTransport]", { status: receipt.status, rttMs: receipt.rttMs, serverReceived: receipt.data.frame.received, analysisSource: receipt.analysis.analysisSource, state: receipt.analysis.state, hasEvent: Boolean(receipt.analysis.event) });
           metrics.lastLogAt = now;
         }
       } catch (error) {
@@ -73,5 +74,5 @@ export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric }) 
       canvas.height = 0;
       console.info("[FrameSampler] Stopped", { frames: metrics.frames, skipped: metrics.skipped, errors: metrics.errors });
     };
-  }, [videoRef, enabled, sessionId, mode, rubric]);
+  }, [videoRef, enabled, sessionId, mode, rubric, onAnalysisResult]);
 }

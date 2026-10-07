@@ -2,6 +2,12 @@ import { FEATURE_LABELS, MODES } from "../config/modes.js";
 
 function handPlacementEvaluation(values, rubric) {
   const isRubricA = rubric === "A";
+  const hasHandFeatures = typeof values.left_hand_region === "string"
+    && typeof values.right_hand_region === "string"
+    && typeof values.knee_distance === "number";
+  if (!hasHandFeatures) {
+    return { feature: "hand_placement", label: `손·무릎 배치 · Rubric ${rubric}`, value: "수신 안 됨", active: false, isIssue: false, ratio: 0 };
+  }
   const handsMatch = isRubricA
     ? values.left_hand_region === "center" && values.right_hand_region === "center"
     : values.left_hand_region === "left_knee" && values.right_hand_region === "right_knee";

@@ -17,6 +17,7 @@ import { useCamera } from "./hooks/useCamera";
 import { useFrameSampler } from "./hooks/useFrameSampler";
 import { mockCoachingProvider } from "./services/MockCoachingProvider";
 import { mockFeatureProvider } from "./services/MockFeatureProvider";
+import { getRemoteEventKey, toTemporalState } from "./services/RemoteAnalysisProvider";
 import { evaluateContext } from "./utils/evaluator";
 import { advanceTemporalState, INITIAL_TEMPORAL_STATE } from "./utils/temporalEvent";
 
@@ -51,23 +52,20 @@ function App() {
   const [temporal, setTemporal] = useState(INITIAL_TEMPORAL_STATE);
   const [stats, setStats] = useState(initialStats);
   const [logs, setLogs] = useState([]);
+  const [remoteAnalysis, setRemoteAnalysis] = useState(null);
   const [resultCueVisible, setResultCueVisible] = useState(false);
   const logIdRef = useRef(0);
   const lastTickRef = useRef(0);
   const resultRef = useRef(null);
+  const remoteEventKeysRef = useRef(new Set());
+  const remoteStatusRef = useRef(null);
 
   const mode = MODES[modeId];
   const scenario = MOCK_SCENARIOS[scenarioIndex];
-  const featurePacket = useMemo(() => mockFeatureProvider.getFeatures(scenarioIndex), [scenarioIndex]);
+  const mockFeaturePacket = useMemo(() => mockFeatureProvider.getFeatures(scenarioIndex), [scenarioIndex]);
+  const featurePacket = inputMode === "live" && remoteAnalysis ? remoteAnalysis.featurePacket : mockFeaturePacket;
   const evaluation = useMemo(() => evaluateContext(featurePacket, modeId, rubric), [featurePacket, modeId, rubric]);
   const { videoRef, devices: cameraDevices, deviceId: cameraDeviceId, selectDevice: selectCameraDevice, permission: cameraPermission, error: cameraError, start: startCamera, retry: retryCamera, stop: stopCamera } = useCamera();
-  useFrameSampler({
-    videoRef,
-    enabled: inputMode === "live" && sessionState === "running" && cameraPermission === "granted",
-    sessionId: frameSessionId,
-    mode: modeId,
-    rubric: modeId === "interview" ? rubric : "",
-  });
   const coachingMessage = mockCoachingProvider.getMessage(temporal, mode);
 
   const addLog = useCallback((status, message) => {
@@ -81,9 +79,54 @@ function App() {
     setTemporal({ ...INITIAL_TEMPORAL_STATE });
     setStats(initialStats());
     setLogs([]);
+    setRemoteAnalysis(null);
     setResultCueVisible(false);
     lastTickRef.current = 0;
+    remoteEventKeysRef.current.clear();
+    remoteStatusRef.current = null;
   }, []);
+
+  const applyRemoteAnalysis = useCallback((result) => {
+    if (inputMode !== "live" || sessionState !== "running" || result.sessionId !== frameSessionId) return;
+    setRemoteAnalysis(result);
+    setTemporal((previous) => toTemporalState(result, previous));
+
+    const previousStatus = remoteStatusRef.current;
+    if (result.state !== previousStatus) {
+      remoteStatusRef.current = result.state;
+      if (["CAUTION", "RECOVERED"].includes(result.state) && !result.event) {
+        addLog(result.state, `원격 데모 · ${result.state === "CAUTION" ? "주의 상태" : "정상 자세 복귀"}`);
+      }
+      if (["CAUTION", "WARNING", "RECOVERED"].includes(result.state)) {
+        setStats((current) => ({
+          ...current,
+          caution: current.caution + (result.state === "CAUTION" ? 1 : 0),
+          warning: current.warning + (result.state === "WARNING" ? 1 : 0),
+          recovered: current.recovered + (result.state === "RECOVERED" ? 1 : 0),
+        }));
+      }
+    }
+
+    const eventKey = getRemoteEventKey(result);
+    if (eventKey && !remoteEventKeysRef.current.has(eventKey)) {
+      remoteEventKeysRef.current.add(eventKey);
+      addLog(result.state, `원격 데모 이벤트 · ${result.event.type}`);
+      setStats((current) => ({
+        ...current,
+        eventCounts: { ...current.eventCounts, [result.event.type]: (current.eventCounts[result.event.type] || 0) + 1 },
+        issueDurations: { ...current.issueDurations, [result.event.type]: (current.issueDurations[result.event.type] || 0) + result.event.durationSec * 1000 },
+      }));
+    }
+  }, [addLog, frameSessionId, inputMode, sessionState]);
+
+  useFrameSampler({
+    videoRef,
+    enabled: inputMode === "live" && sessionState === "running" && cameraPermission === "granted",
+    sessionId: frameSessionId,
+    mode: modeId,
+    rubric: modeId === "interview" ? rubric : "",
+    onAnalysisResult: applyRemoteAnalysis,
+  });
 
   useEffect(() => {
     if (sessionState !== "running") return undefined;
@@ -93,6 +136,7 @@ function App() {
       const delta = Math.max(0, now - lastTickRef.current);
       lastTickRef.current = now;
       setElapsedMs((current) => current + delta);
+      if (inputMode === "live") return;
       setTemporal((previous) => {
         const next = advanceTemporalState(previous, evaluation, now);
         if (["CAUTION", "WARNING"].includes(previous.status) && previous.eventType) {
@@ -109,7 +153,7 @@ function App() {
       });
     }, 250);
     return () => window.clearInterval(timer);
-  }, [sessionState, evaluation, addLog]);
+  }, [sessionState, evaluation, addLog, inputMode]);
 
   useEffect(() => {
     if (sessionState !== "ended" || !resultRef.current) return undefined;
@@ -153,7 +197,7 @@ function App() {
         <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
 
         <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
-        <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신만 검증합니다. MediaPipe, 정식 분석, WebSocket, SOLAR는 미연동이며 현재 자세 포인트, Feature와 코칭은 데모 데이터입니다.</p></footer>
+        <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신과 Demo Feature/Event 계약만 검증합니다. MediaPipe, 실제 CV 판정, WebSocket, SOLAR는 미연동이며 분석값과 코칭은 데모 데이터입니다.</p></footer>
       </main>
 
       {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /></section>}

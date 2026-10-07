@@ -13,7 +13,7 @@ function FeaturePanel({ featurePacket, evaluation, scenario, mode }) {
   const resultMap = Object.fromEntries(evaluation.results.map((item) => [item.feature, item]));
   return (
     <section className="panel feature-panel">
-      <div className="panel-heading"><div><span className="eyebrow">자세 요약</span><h2>주요 자세 항목</h2></div><span className="mock-chip">데모 데이터</span></div>
+      <div className="panel-heading"><div><span className="eyebrow">자세 요약</span><h2>주요 자세 항목</h2></div><span className="mock-chip">{featurePacket.source === "remote-demo" ? "원격 데모 응답" : featurePacket.source === "remote" ? "원격 분석 응답" : "로컬 데모 데이터"}</span></div>
       <div className="feature-summary">{summaryFeatures.map((feature) => {
         const result = resultMap[feature];
         const label = FEATURE_LABELS[feature];
