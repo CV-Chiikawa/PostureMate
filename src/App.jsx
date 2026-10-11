@@ -56,6 +56,7 @@ function App() {
   const [resultCueVisible, setResultCueVisible] = useState(false);
   const logIdRef = useRef(0);
   const lastTickRef = useRef(0);
+  const temporalTickRef = useRef(0);
   const resultRef = useRef(null);
   const remoteEventKeysRef = useRef(new Set());
   const remoteStatusRef = useRef(null);
@@ -82,6 +83,7 @@ function App() {
     setRemoteAnalysis(null);
     setResultCueVisible(false);
     lastTickRef.current = 0;
+    temporalTickRef.current = 0;
     remoteEventKeysRef.current.clear();
     remoteStatusRef.current = null;
   }, []);
@@ -136,7 +138,17 @@ function App() {
       const delta = Math.max(0, now - lastTickRef.current);
       lastTickRef.current = now;
       setElapsedMs((current) => current + delta);
-      if (inputMode === "live") return;
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [sessionState]);
+
+  useEffect(() => {
+    if (sessionState !== "running" || inputMode === "live") return undefined;
+    temporalTickRef.current = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      const delta = Math.max(0, now - temporalTickRef.current);
+      temporalTickRef.current = now;
       setTemporal((previous) => {
         const next = advanceTemporalState(previous, evaluation, now);
         if (["CAUTION", "WARNING"].includes(previous.status) && previous.eventType) {
