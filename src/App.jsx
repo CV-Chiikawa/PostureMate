@@ -200,7 +200,8 @@ function App() {
   };
   const chooseModeFromIntro = (nextMode) => {
     changeMode(nextMode);
-    setPage("modes");
+    resetSession("idle");
+    setPage("analysis");
   };
   const enterAnalysis = () => {
     resetSession("idle");
