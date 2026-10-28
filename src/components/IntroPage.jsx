@@ -51,7 +51,14 @@ function IntroPage({ onStart, onChooseMode }) {
         </div>
         <div className="mode-carousel">
           <button className="carousel-arrow" type="button" aria-label="이전 모드" onClick={() => move(-1)}>←</button>
-          <div className="carousel-window" aria-live="polite">
+          <div
+            className="carousel-window"
+            aria-live="polite"
+            onMouseEnter={() => setCarouselPaused(true)}
+            onMouseLeave={() => setCarouselPaused(false)}
+            onFocusCapture={() => setCarouselPaused(true)}
+            onBlurCapture={() => setCarouselPaused(false)}
+          >
             {visibleModes.map(({ id, position }) => {
               const mode = MODES[id];
               const active = position === "active";
@@ -61,10 +68,6 @@ function IntroPage({ onStart, onChooseMode }) {
                   type="button"
                   className={`carousel-card ${position}`}
                   onClick={() => active ? onChooseMode(id) : setActiveIndex(carouselModes.indexOf(id))}
-                  onMouseEnter={() => active && setCarouselPaused(true)}
-                  onMouseLeave={() => active && setCarouselPaused(false)}
-                  onFocus={() => active && setCarouselPaused(true)}
-                  onBlur={() => active && setCarouselPaused(false)}
                   aria-label={`${mode.label} 모드 ${active ? "선택" : "보기"}`}
                 >
                   <ModeArtwork modeId={id} />
