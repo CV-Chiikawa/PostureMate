@@ -22,7 +22,7 @@ function IntroPage({ onStart, onChooseMode }) {
 
   useEffect(() => {
     if (carouselPaused) return undefined;
-    const timer = window.setInterval(() => move(1), 2000);
+    const timer = window.setInterval(() => move(1), 4000);
     return () => window.clearInterval(timer);
   }, [carouselPaused]);
 
