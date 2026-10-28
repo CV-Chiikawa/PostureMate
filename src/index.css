@@ -1,17 +1,17 @@
 * { box-sizing: border-box; }
-html { min-width: 320px; background: #070b0f; }
+html { min-width: 320px; background: #f4efe7; scroll-behavior: smooth; }
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
   font-family: Inter, Pretendard, "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
   background:
-    radial-gradient(circle at 15% -15%, rgba(67, 209, 188, 0.12), transparent 32%),
-    radial-gradient(circle at 92% 8%, rgba(77, 128, 255, 0.1), transparent 28%),
-    #070b0f;
-  color: #edf4f3;
+    radial-gradient(circle at 12% -10%, rgba(216, 170, 100, 0.16), transparent 34%),
+    radial-gradient(circle at 92% 8%, rgba(201, 120, 47, 0.1), transparent 30%),
+    #f4efe7;
+  color: #32291f;
 }
 button, input, select { font: inherit; }
 button { border: 0; }
-button:focus-visible, select:focus-visible { outline: 2px solid #64e5cf; outline-offset: 2px; }
+button:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid #cf7a27; outline-offset: 2px; }
 #root { min-height: 100vh; }

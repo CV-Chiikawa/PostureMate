@@ -7,6 +7,8 @@ import ControlPanel from "./components/ControlPanel";
 import EventLog from "./components/EventLog";
 import FeaturePanel from "./components/FeaturePanel";
 import Header from "./components/Header";
+import IntroPage from "./components/IntroPage";
+import ModeSelectionPage from "./components/ModeSelectionPage";
 import ModeSelector from "./components/ModeSelector";
 import SessionSummary from "./components/SessionSummary";
 import StatusPanel from "./components/StatusPanel";
@@ -37,6 +39,7 @@ function saveGuideOptOutCookie() {
 const initialStats = () => ({ caution: 0, warning: 0, recovered: 0, eventCounts: {}, issueDurations: {} });
 
 function App() {
+  const [page, setPage] = useState("intro");
   const [showGuide, setShowGuide] = useState(() => {
     try { return !hasGuideOptOutCookie(); } catch { return true; }
   });
@@ -191,29 +194,50 @@ function App() {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     resultRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   };
+  const navigatePage = (nextPage) => {
+    if (["running", "paused"].includes(sessionState)) return;
+    setPage(nextPage);
+  };
+  const chooseModeFromIntro = (nextMode) => {
+    changeMode(nextMode);
+    setPage("modes");
+  };
+  const enterAnalysis = () => {
+    resetSession("idle");
+    setPage("analysis");
+  };
+  const showResult = () => {
+    if (sessionState !== "ended") return;
+    setPage("analysis");
+    window.setTimeout(scrollToResult, 0);
+  };
 
   return (
     <div className="app-shell">
       {showGuide && <WelcomeModal onClose={closeGuide} showDontShowAgain={!guideOpenedManually} />}
       {showSettings && <ModeSelector modeId={modeId} rubric={rubric} inputMode={inputMode} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} cameraPermission={cameraPermission} onModeChange={changeMode} onRubricChange={changeRubric} onInputModeChange={changeInputMode} onCameraDeviceChange={selectCameraDevice} onClose={() => setShowSettings(false)} />}
-      <Header mode={mode} rubric={rubric} sessionState={sessionState} inputMode={inputMode} onShowGuide={() => { setGuideOpenedManually(true); setShowGuide(true); }} onShowSettings={() => setShowSettings(true)} />
+      <Header page={page} mode={mode} rubric={rubric} sessionState={sessionState} inputMode={inputMode} hasResult={sessionState === "ended"} onNavigate={navigatePage} onShowResult={showResult} onShowGuide={() => { setGuideOpenedManually(true); setShowGuide(true); }} onShowSettings={() => setShowSettings(true)} />
 
-      <main className="dashboard">
-        <div className="analysis-heading"><div><span className="eyebrow">{phaseCopy[0]}</span><h2>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h2></div><span>{phaseCopy[1]} · {inputMode === "live" ? "실제 영상 / 데모 분석" : "데모 분석"}</span></div>
+      {page === "intro" && <IntroPage onStart={() => setPage("modes")} onChooseMode={chooseModeFromIntro} />}
+      {page === "modes" && <ModeSelectionPage modeId={modeId} onSelectMode={changeMode} onStartMode={enterAnalysis} />}
+      {page === "analysis" && <>
+        <main className="dashboard" id="analysis-dashboard">
+          <div className="analysis-heading"><div><span className="section-kicker">{phaseCopy[0]}</span><h1>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h1></div><div><span>{phaseCopy[1]}</span><b>{inputMode === "live" ? "실제 영상 / 자세 분석은 데모 데이터" : "데모 입력 / 데모 분석"}</b></div></div>
 
-        <div className="focus-layout">
-          <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} temporalStatus={temporal.status} sessionState={sessionState} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
-          <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><CoachingPanel message={coachingMessage} /></aside>
-        </div>
+          <div className="focus-layout">
+            <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} temporalStatus={temporal.status} sessionState={sessionState} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
+            <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><CoachingPanel message={coachingMessage} /></aside>
+          </div>
 
-        <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
+          <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} stats={stats} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
 
-        <div className="support-grid"><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><EventLog logs={logs} /></div>
-        <footer><span>웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신과 Demo Feature/Event 계약만 검증합니다. MediaPipe, 실제 CV 판정, WebSocket, SOLAR는 미연동이며 분석값과 코칭은 데모 데이터입니다.</p></footer>
-      </main>
+          <div className="support-grid"><EventLog logs={logs} defaultOpen={sessionState === "ended"} /></div>
+          <footer><span>PostureMate 웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신과 Demo Feature/Event 계약만 검증합니다. MediaPipe, 실제 CV 판정, WebSocket, SOLAR는 미연동이며 분석값과 코칭은 데모 데이터입니다.</p></footer>
+        </main>
 
-      {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} onRestart={() => resetSession("idle")} /></section>}
-      {sessionState === "ended" && <button className={`result-scroll-cue ${resultCueVisible ? "visible" : "hidden"}`} type="button" aria-controls="analysis-result" onClick={scrollToResult}><span className="result-scroll-cue-content"><b>분석 결과 보기</b><i aria-hidden="true">↓</i></span></button>}
+        {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} logs={logs} coachingMessage={coachingMessage} onRestart={() => resetSession("idle")} /></section>}
+        {sessionState === "ended" && <button className={`result-scroll-cue ${resultCueVisible ? "visible" : "hidden"}`} type="button" aria-controls="analysis-result" onClick={scrollToResult}><span className="result-scroll-cue-content"><b>분석 결과 보기</b><i aria-hidden="true">↓</i></span></button>}
+      </>}
     </div>
   );
 }
