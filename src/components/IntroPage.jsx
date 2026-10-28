@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MODES } from "../config/modes";
 import ModeArtwork from "./ModeArtwork";
 
@@ -11,8 +11,20 @@ const introCopy = {
 
 function IntroPage({ onStart, onChooseMode }) {
   const [activeIndex, setActiveIndex] = useState(1);
+  const [carouselPaused, setCarouselPaused] = useState(false);
   const activeId = carouselModes[activeIndex];
   const move = (direction) => setActiveIndex((current) => (current + direction + carouselModes.length) % carouselModes.length);
+  const visibleModes = [
+    { id: carouselModes[(activeIndex - 1 + carouselModes.length) % carouselModes.length], position: "previous" },
+    { id: activeId, position: "active" },
+    { id: carouselModes[(activeIndex + 1) % carouselModes.length], position: "next" },
+  ];
+
+  useEffect(() => {
+    if (carouselPaused) return undefined;
+    const timer = window.setInterval(() => move(1), 2000);
+    return () => window.clearInterval(timer);
+  }, [carouselPaused]);
 
   return (
     <main className="page-shell intro-page" id="intro-page">
@@ -39,12 +51,22 @@ function IntroPage({ onStart, onChooseMode }) {
         </div>
         <div className="mode-carousel">
           <button className="carousel-arrow" type="button" aria-label="이전 모드" onClick={() => move(-1)}>←</button>
-          <div className="carousel-window">
-            {carouselModes.map((id, index) => {
+          <div className="carousel-window" aria-live="polite">
+            {visibleModes.map(({ id, position }) => {
               const mode = MODES[id];
-              const active = index === activeIndex;
+              const active = position === "active";
               return (
-                <button key={id} type="button" className={`carousel-card ${active ? "active" : ""}`} onClick={() => active ? onChooseMode(id) : setActiveIndex(index)} aria-label={`${mode.label} 모드 ${active ? "선택" : "보기"}`}>
+                <button
+                  key={id}
+                  type="button"
+                  className={`carousel-card ${position}`}
+                  onClick={() => active ? onChooseMode(id) : setActiveIndex(carouselModes.indexOf(id))}
+                  onMouseEnter={() => active && setCarouselPaused(true)}
+                  onMouseLeave={() => active && setCarouselPaused(false)}
+                  onFocus={() => active && setCarouselPaused(true)}
+                  onBlur={() => active && setCarouselPaused(false)}
+                  aria-label={`${mode.label} 모드 ${active ? "선택" : "보기"}`}
+                >
                   <ModeArtwork modeId={id} />
                   <span><b>{mode.label}</b><small>{introCopy[id]}</small></span>
                 </button>
