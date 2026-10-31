@@ -143,16 +143,9 @@ src/
 └─ utils/       Context Evaluator와 Temporal State Machine
 
 backend/        임시 FastAPI 프레임 수신 서버와 전송 테스트
-
-specs/001-posture-coach-demo/
-├─ specification.md
-├─ research.md
-├─ decisions.md
-├─ plan.md
-└─ tasks.md
 ```
 
-`AUTOPILOT_PROGRESS.md`에는 구현 단계와 마지막 검증·Checkpoint를 기록합니다.
+현재 구현 상태, 검증 결과와 Backend/CV 인계 항목은 `FRONTEND_STATUS.md`에서 관리합니다. 개인 구현 과정에서 만든 `specs/` 문서는 로컬 참고자료로만 유지하며 Git 추적 대상에서 제외합니다.
 
 ## 알려진 제한사항
 
