@@ -1,6 +1,6 @@
 # 거북목 데모 이벤트 → Solar Pro 4
 
-FastAPI가 JPEG를 검증한 뒤 **합성 자세 이벤트**를 만듭니다. `analysis_source: "demo"`는 계속 유지합니다. MediaPipe와 화면 연결은 아직 포함되지 않습니다. `neck` 모드에서만 서버가 [Upstage Chat Completions API](https://console.upstage.ai/ko/api/chat)의 `solar-pro4`를 호출합니다.
+FastAPI가 JPEG를 검증한 뒤 **합성 자세 이벤트**를 만듭니다. `analysis_source: "demo"`는 계속 유지합니다. MediaPipe 실영상 판정은 아직 없지만, `neck` 모드의 코칭 패널은 [Upstage Chat Completions API](https://console.upstage.ai/ko/api/chat)의 `solar-pro4` 문장을 받아 표시합니다.
 
 ## 로컬 실행
 
@@ -26,6 +26,16 @@ $env:UPSTAGE_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Upsta
 # 키 없는 서버에서는 대체 문구 경로만 별도 검증
 .\.venv\Scripts\python.exe -m backend.smoke_neck --expect-fallback
 ```
+
+## 브라우저에서 확인
+
+키를 설정한 FastAPI를 실행한 상태에서 두 번째 터미널로 저장소 루트에서 `npm ci`(최초 1회), `npm run dev`를 실행합니다. 기본 개발 주소는 `http://localhost:5173`입니다.
+
+1. **거북목 방지**를 선택하고 오른쪽 상단 메뉴에서 **분석 설정 → 입력 방식 → 실제 카메라**를 선택합니다. 카메라 권한을 허용하고 **분석 시작**을 누릅니다.
+2. 주의·경고가 시작되면 **기본 안내**가 먼저 뜹니다. 응답이 5초 안에 오면 같은 이벤트의 **SOLAR 코칭**으로 바뀝니다. 키가 없거나 요청에 실패하면 기본 안내가 유지됩니다.
+3. **정상 자세로 돌아왔습니다** 상태에서 이전 SOLAR 문장이 사라지고 복구 안내가 뜨는지 확인합니다. 상태는 카메라 자세가 아니라 아래의 데모 프레임 순서로 전환됩니다.
+
+자동 회귀 검증: `node --test tests/remote-coaching.test.mjs`.
 
 ## 프레임과 호출 규칙
 
@@ -56,4 +66,4 @@ $env:UPSTAGE_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Upsta
 }
 ```
 
-`AnalysisResponseAdapter`에서 선택 필드 `coaching`을 보존하고 현재 세션·이벤트 ID가 **모두** 일치할 때만 문구를 교체합니다. `coaching: null`은 새 문구가 없다는 뜻이므로 같은 이벤트의 표시 문구는 유지합니다. 복구·모드 변경·세션 종료 시 현재 ID를 비웁니다. 일시정지 중에는 프레임이 없으므로 문장을 전달하지 않습니다. 웹캠 UI 수정은 프론트 담당자 범위입니다.
+`AnalysisResponseAdapter`에서 선택 필드 `coaching`을 보존하고 현재 세션·이벤트 ID가 **모두** 일치할 때만 문구를 교체합니다. `coaching: null`은 새 문구가 없다는 뜻이므로 같은 이벤트의 표시 문구는 유지합니다. 복구·모드 변경·세션 종료 시 현재 ID를 비웁니다. 일시정지 중에는 프레임이 없으므로 문장을 전달하지 않습니다.

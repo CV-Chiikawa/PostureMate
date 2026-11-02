@@ -32,7 +32,7 @@ function WelcomeModal({ onClose, showDontShowAgain = true }) {
       </div>
       <p>상황에 맞는 기준으로 자세를 살펴보는 AI 코칭 선행 데모입니다.</p>
       <ol><li>상단 메뉴에서 사용할 모드를 고르세요.</li><li>분석 화면에서 입력 방식을 확인하세요.</li><li>분석 시작을 눌러 세션을 시작하세요.</li></ol>
-      <div className="guide-scope"><b>실제 영상 사용 가능</b><span>자세 분석과 코칭은 현재 데모 데이터로 동작합니다.</span></div>
+      <div className="guide-scope"><b>실제 영상 사용 가능</b><span>자세 판정은 데모입니다. 거북목 모드에서는 기본 안내 뒤에 SOLAR 코칭이 표시될 수 있습니다.</span></div>
       <div className="guide-actions">
         {showDontShowAgain && <label className="dont-show"><input type="checkbox" checked={dontShowAgain} onChange={(event) => setDontShowAgain(event.target.checked)} /> 다음부터 자동으로 열지 않기</label>}
         <button className="secondary-button guide-close" type="button" onClick={() => onClose(dontShowAgain)}>닫기</button>

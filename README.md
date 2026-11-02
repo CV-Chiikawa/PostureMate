@@ -1,6 +1,6 @@
 # PostureMate Backend
 
-`backend` 브랜치는 `frontend`에서 분기했습니다. 기존 프레임 API에 거북목 데모 이벤트와 Solar Pro 4 비동기 코칭을 추가합니다. **[백엔드 실행 및 프론트 인계 문서](backend/README.md)**에 키 설정, 로컬 실호출, 응답 예시가 있습니다. 아래는 분기 당시 프론트 문서이며 화면은 아직 고정 코칭 문구를 사용합니다.
+`backend` 브랜치는 거북목 데모 이벤트에서 받은 Solar Pro 4 문장을 코칭 패널에 표시합니다. **[서버 키 설정 및 화면 확인 방법](backend/README.md)**을 참고하세요. 거북목 모드에서 실제 카메라로 분석을 시작하면 기본 안내가 먼저 나오고, 같은 경고의 SOLAR 응답이 도착하면 문장이 바뀝니다. 복구되면 기본 복구 안내로 돌아갑니다.
 
 ## PostureMate Frontend (분기 기준)
 
@@ -110,6 +110,7 @@ event
 - 실제 Camera Preview
 - 실제 Webcam JPEG 프레임 샘플링과 임시 FastAPI 수신 검증
 - Remote Demo Feature/State/Event 응답의 UI 반영
+- 거북목 모드의 실제 카메라 입력: 같은 이벤트의 서버 코칭을 표시하고 복구 시 해제
 - Session Start, Pause, Resume, End
 - Context Evaluator와 Temporal State Machine
 - Event Log와 Session Summary
@@ -120,9 +121,9 @@ event
 - MediaPipe Pose/Hand/Face 추론
 - 손·무릎의 실제 영상 판정
 - MediaPipe 기반 실제 CV Backend 분석
-- SOLAR 자연어 코칭
+- 브라우저 데모 입력과 면접·발표 모드의 코칭 문구
 
-`실제 카메라`에서는 영상과 프레임 전송이 실제로 동작하지만 현재 FastAPI 응답은 Demo Fixture입니다. 화면에는 `실제 카메라 영상 / 자세 분석은 데모 데이터`, Landmark에는 `자세 포인트 표시 — 데모`, 코칭에는 `데모 코칭 · SOLAR 미연동`을 표시합니다.
+`실제 카메라`에서도 자세 수치와 랜드마크는 데모입니다. 코칭 패널에는 현재 문장의 출처에 따라 `기본 안내`, `SOLAR 코칭` 또는 `데모 코칭`을 표시합니다.
 
 ## 기술 스택
 
@@ -175,6 +176,6 @@ backend/        임시 FastAPI 프레임 수신 서버와 전송 테스트
 3. 필요 시 WebSocket으로 최신 Feature/Event를 전달하고 오래된 Frame을 폐기합니다.
 4. Mock 손·무릎 값을 Pose Wrist/Knee 또는 필요 시 Hand Landmarker 결과로 교체합니다.
 5. Evaluator와 Temporal 기준을 내부 테스트 영상으로 조정합니다.
-6. `MockCoachingProvider`를 Event 기반 `SolarCoachingProvider`로 교체하고 timeout fallback을 유지합니다.
+6. 거북목 모드에서 검증한 이벤트 기반 SOLAR 코칭을 다른 모드로 확장합니다.
 
 원본 영상은 기본 저장하지 않으며, 실제 SOLAR 연동 시에도 영상이 아니라 구조화된 Event 근거만 전달하는 것을 원칙으로 합니다.

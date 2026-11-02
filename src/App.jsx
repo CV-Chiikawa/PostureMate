@@ -70,7 +70,12 @@ function App() {
   const featurePacket = inputMode === "live" && remoteAnalysis ? remoteAnalysis.featurePacket : mockFeaturePacket;
   const evaluation = useMemo(() => evaluateContext(featurePacket, modeId, rubric), [featurePacket, modeId, rubric]);
   const { videoRef, devices: cameraDevices, deviceId: cameraDeviceId, selectDevice: selectCameraDevice, permission: cameraPermission, error: cameraError, start: startCamera, retry: retryCamera, stop: stopCamera } = useCamera();
-  const coachingMessage = mockCoachingProvider.getMessage(temporal, mode);
+  const liveNeck = inputMode === "live" && modeId === "neck";
+  const coaching = liveNeck ? temporal.coaching : null;
+  const coachingLabel = coaching?.source === "solar" ? "SOLAR 코칭" : liveNeck ? "기본 안내" : "데모 코칭";
+  const coachingMessage = liveNeck && sessionState === "ended"
+    ? "이번 세션이 끝났습니다. 다시 분석을 시작하면 새 안내를 받을 수 있어요."
+    : coaching?.message ?? mockCoachingProvider.getMessage(temporal, mode);
 
   const addLog = useCallback((status, message) => {
     const entry = { id: logIdRef.current++, time: new Date().toLocaleTimeString("ko-KR", { hour12: false }), status, message };
@@ -183,7 +188,13 @@ function App() {
   const changeRubric = (nextRubric) => { if (nextRubric !== rubric) { setRubric(nextRubric); resetSession(); } };
   const changeInputMode = (nextInputMode) => { setInputMode(nextInputMode); if (nextInputMode === "live") startCamera(cameraDeviceId); else stopCamera(); };
   const startSession = () => { setFrameSessionId(crypto.randomUUID()); resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); if (inputMode === "live") startCamera(cameraDeviceId); };
-  const endSession = () => { setSessionState("ended"); setResultCueVisible(true); stopCamera(); addLog("세션", "분석 종료 · 카메라 연결 해제"); };
+  const endSession = () => {
+    setSessionState("ended");
+    setTemporal((previous) => ({ ...previous, activeEventId: null, coaching: null }));
+    setResultCueVisible(true);
+    stopCamera();
+    addLog("세션", "분석 종료 · 카메라 연결 해제");
+  };
   const closeGuide = (dontShowAgain) => {
     if (dontShowAgain) { try { saveGuideOptOutCookie(); } catch { /* Cookie 저장 불가 환경에서는 이번 화면에서만 닫는다. */ } }
     setShowGuide(false);
@@ -227,16 +238,16 @@ function App() {
 
           <div className="focus-layout">
             <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} temporalStatus={temporal.status} sessionState={sessionState} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
-            <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><CoachingPanel message={coachingMessage} /></aside>
+            <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><CoachingPanel label={coachingLabel} message={coachingMessage} /></aside>
           </div>
 
           <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} stats={stats} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
 
           <div className="support-grid"><EventLog logs={logs} defaultOpen={sessionState === "ended"} /></div>
-          <footer><span>PostureMate 웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신과 Demo Feature/Event 계약만 검증합니다. MediaPipe, 실제 CV 판정, WebSocket, SOLAR는 미연동이며 분석값과 코칭은 데모 데이터입니다.</p></footer>
+          <footer><span>PostureMate · 영상 저장 안 함</span><p>자세 판정은 데모입니다. 거북목 모드에서 실제 카메라를 선택하면 영상 대신 자세 이벤트의 측정값을 SOLAR에 보내 코칭을 받습니다.</p></footer>
         </main>
 
-        {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} logs={logs} coachingMessage={coachingMessage} onRestart={() => resetSession("idle")} /></section>}
+        {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} logs={logs} coachingLabel={coachingLabel} coachingMessage={coachingMessage} onRestart={() => resetSession("idle")} /></section>}
         {sessionState === "ended" && <button className={`result-scroll-cue ${resultCueVisible ? "visible" : "hidden"}`} type="button" aria-controls="analysis-result" onClick={scrollToResult}><span className="result-scroll-cue-content"><b>분석 결과 보기</b><i aria-hidden="true">↓</i></span></button>}
       </>}
     </div>

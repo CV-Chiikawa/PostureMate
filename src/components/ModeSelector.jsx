@@ -27,7 +27,7 @@ function ModeSelector({ modeId, rubric, inputMode, cameraDevices, cameraDeviceId
       {view === "rubric" && <div className="settings-options">{Object.entries(RUBRICS).map(([id, item]) => <SettingOption key={id} selected={id === rubric} title={`기준 ${id}`} description={item.description} onClick={() => { onRubricChange(id); back(); }} />)}</div>}
       {view === "input" && <div className="settings-options"><SettingOption selected={inputMode === "mock"} title="데모 모드" description="준비된 자세 상황과 데모 Feature 사용" onClick={() => { onInputModeChange("mock"); back(); }} /><SettingOption selected={inputMode === "live"} title="실제 카메라" description="실제 Webcam 영상 사용 · 자세 분석 데이터는 데모 기반" onClick={() => { onInputModeChange("live"); back(); }} /></div>}
       {view === "camera" && <div className="settings-options">{cameraDevices.map((device, index) => <SettingOption key={device.deviceId} selected={device.deviceId === cameraDeviceId} title={device.label || `카메라 ${index + 1}`} description="이 카메라 하나를 미리보기와 분석 대상으로 사용" onClick={() => { onCameraDeviceChange(device.deviceId); back(); }} />)}</div>}
-      <p className="settings-note">실제 카메라에서도 자세 분석과 코칭은 데모 데이터로 동작합니다.</p>
+      <p className="settings-note">거북목 모드에서 실제 카메라를 선택하면 데모 경고에 대한 SOLAR 코칭을 받을 수 있습니다.</p>
     </aside>
   );
 }

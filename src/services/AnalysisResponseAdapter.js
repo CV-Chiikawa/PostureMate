@@ -36,6 +36,13 @@ function normalizeEvent(event, context) {
   };
 }
 
+function normalizeCoaching(packet) {
+  if (!packet || typeof packet.event_id !== "string" || !packet.event_id.trim()
+      || !["fallback", "solar"].includes(packet.source)
+      || typeof packet.message !== "string" || !packet.message.trim()) return null;
+  return { eventId: packet.event_id, source: packet.source, message: packet.message.trim() };
+}
+
 export function adaptAnalysisResponse(data, expected) {
   requireObject(data, "root");
   const frame = requireObject(data.frame, "frame");
@@ -73,5 +80,6 @@ export function adaptAnalysisResponse(data, expected) {
     },
     state: data.state,
     event,
+    coaching: normalizeCoaching(data.coaching),
   };
 }
