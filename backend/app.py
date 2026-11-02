@@ -1,22 +1,49 @@
-"""Temporary local transport server with deterministic demo analysis fixtures."""
+"""Local frame transport demo with optional Solar coaching for synthetic neck events."""
 
+import asyncio
 import io
 import os
-from collections import defaultdict
-from threading import Lock
+from collections import OrderedDict
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+import httpx
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
+from backend.coaching import Coaching
 
 MAX_FRAME_BYTES = 5 * 1024 * 1024
 MAX_FRAME_PIXELS = 16_000_000
 DEFAULT_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 DEMO_PHASE_FRAMES = 10
 DEMO_STATES = ("NORMAL", "CAUTION", "WARNING", "RECOVERED")
-_session_frame_counts = defaultdict(int)
-_session_frame_counts_lock = Lock()
+MAX_SESSIONS = 128
+SESSION_IDLE_SECONDS = 300
+
+
+@dataclass
+class Session:
+    frame_count: int = 0
+    last_seen: float = 0
+    coaching: Coaching = field(default_factory=Coaching)
+
+
+def get_session(sessions, session_id):
+    now = asyncio.get_running_loop().time()
+    # Ordered by last use: expired demos must not retain tasks or replay old results.
+    while sessions and next(iter(sessions.values())).last_seen <= now - SESSION_IDLE_SECONDS:
+        sessions.popitem(last=False)[1].coaching.invalidate()
+    if session_id not in sessions and len(sessions) >= MAX_SESSIONS:
+        sessions.popitem(last=False)[1].coaching.invalidate()
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    session = sessions[session_id]
+    sessions.move_to_end(session_id)
+    session.last_seen = now
+    return session
+
 
 DEMO_FEATURES = {
     "NORMAL": {
@@ -53,7 +80,23 @@ DEMO_FEATURES = {
     },
 }
 
-app = FastAPI(title="Posture Coach Frame Transport Demo")
+
+@asynccontextmanager
+async def lifespan(app):
+    app.state.sessions = OrderedDict()
+    async with httpx.AsyncClient() as client:
+        app.state.solar = client
+        try:
+            yield
+        finally:
+            tasks = [s.coaching.task for s in app.state.sessions.values() if s.coaching.task]
+            for session in app.state.sessions.values():
+                session.coaching.invalidate()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            app.state.sessions.clear()
+
+
+app = FastAPI(title="Posture Coach Frame Transport Demo", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in os.getenv("FRAME_DEMO_CORS_ORIGINS", DEFAULT_ORIGINS).split(",") if origin.strip()],
@@ -67,11 +110,31 @@ def health():
     return {"ok": True, "service": "remote-analysis-demo", "analysis_source": "demo"}
 
 
-def demo_analysis(session_id: str, mode: str, rubric: str):
+def demo_analysis(session_id: str, mode: str, rubric: str, frame_index: int):
     """Return a deterministic sequence for contract/UI testing, never CV output."""
-    with _session_frame_counts_lock:
-        frame_index = _session_frame_counts[session_id]
-        _session_frame_counts[session_id] += 1
+    if mode == "neck":
+        # At 5 FPS each open event lasts 7 s, long enough to exercise the 5 s deadline.
+        phase = frame_index % 90
+        if phase < 10:
+            state = "NORMAL"
+        elif phase < 45:
+            state = "CAUTION"
+        elif phase < 80:
+            state = "WARNING"
+        else:
+            state = "RECOVERED"
+        features = dict(DEMO_FEATURES[state])
+        features["forward_head_proxy"] = {"NORMAL": 0.05, "CAUTION": 0.12, "WARNING": 0.18, "RECOVERED": 0.04}[state]
+        event = None
+        if phase in (10, 45):
+            event = {
+                "event_id": f"demo:{session_id}:neck:{state.lower()}:{frame_index}",
+                "mode": mode, "rubric": rubric or None, "type": "forward_head_proxy",
+                "severity": state.lower(), "started_at": (frame_index - phase) / 5,
+                "duration_sec": phase / 5, "confidence": 0.91,
+                "metrics": {"forward_head_proxy": features["forward_head_proxy"]},
+            }
+        return state, features, event
 
     sequence_index = frame_index % (len(DEMO_STATES) * DEMO_PHASE_FRAMES)
     state = DEMO_STATES[sequence_index // DEMO_PHASE_FRAMES]
@@ -93,6 +156,7 @@ def demo_analysis(session_id: str, mode: str, rubric: str):
 
 @app.post("/process-frame")
 async def process_frame(
+    request: Request,
     file: UploadFile = File(...),
     session_id: str = Form(...),
     mode: str = Form(...),
@@ -102,6 +166,8 @@ async def process_frame(
         raise HTTPException(status_code=415, detail="JPEG frames only")
     if not session_id.strip() or not mode.strip():
         raise HTTPException(status_code=422, detail="session_id and mode are required")
+    if mode == "neck" and rubric:
+        raise HTTPException(status_code=422, detail="Neck mode does not take a rubric")
 
     content = await file.read(MAX_FRAME_BYTES + 1)
     if not content:
@@ -120,7 +186,10 @@ async def process_frame(
     except (UnidentifiedImageError, OSError, ValueError) as error:
         raise HTTPException(status_code=400, detail="Invalid JPEG frame") from error
 
-    state, features, event = demo_analysis(session_id, mode, rubric)
+    session = get_session(request.app.state.sessions, session_id)
+    state, features, event = demo_analysis(session_id, mode, rubric, session.frame_count)
+    session.frame_count += 1
+    coaching = session.coaching.frame(request.app.state.solar, mode, state, event)
     return {
         "ok": True,
         "session_id": session_id,
@@ -135,4 +204,5 @@ async def process_frame(
         "features": features,
         "state": state,
         "event": event,
+        "coaching": coaching,
     }

@@ -16,14 +16,14 @@ def request_json(request):
         return response.status, json.load(response)
 
 
-def multipart_frame(session_id="test-session-001"):
+def multipart_frame(session_id="test-session-001", mode="interview", rubric="A"):
     image = Image.new("RGB", (320, 180), (15, 120, 200))
     output = io.BytesIO()
     image.save(output, format="JPEG", quality=80)
     jpeg = output.getvalue()
     boundary = uuid.uuid4().hex
     parts = []
-    for name, value in {"session_id": session_id, "mode": "interview", "rubric": "A"}.items():
+    for name, value in {"session_id": session_id, "mode": mode, "rubric": rubric}.items():
         parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'.encode())
     parts.append(
         f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="frame.jpg"\r\nContent-Type: image/jpeg\r\n\r\n'.encode()

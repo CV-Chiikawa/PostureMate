@@ -1,4 +1,8 @@
-# PostureMate Frontend
+# PostureMate Backend
+
+`backend` 브랜치는 `frontend`에서 분기했습니다. 기존 프레임 API에 거북목 데모 이벤트와 Solar Pro 4 비동기 코칭을 추가합니다. **[백엔드 실행 및 프론트 인계 문서](backend/README.md)**에 키 설정, 로컬 실호출, 응답 예시가 있습니다. 아래는 분기 당시 프론트 문서이며 화면은 아직 고정 코칭 문구를 사용합니다.
+
+## PostureMate Frontend (분기 기준)
 
 사용 상황에 따라 자세 평가 기준을 다르게 적용하고, 문제 자세가 일정 시간 지속될 때 상태 변화와 교정 피드백을 보여주는 PostureMate의 React 프론트엔드입니다.
 
