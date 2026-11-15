@@ -179,6 +179,10 @@ function App() {
     return () => observer.disconnect();
   }, [sessionState]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [page]);
+
   const changeMode = (nextMode) => { if (nextMode !== modeId) { setModeId(nextMode); resetSession(); } };
   const changeRubric = (nextRubric) => { if (nextRubric !== rubric) { setRubric(nextRubric); resetSession(); } };
   const changeInputMode = (nextInputMode) => { setInputMode(nextInputMode); if (nextInputMode === "live") startCamera(cameraDeviceId); else stopCamera(); };
@@ -203,7 +207,8 @@ function App() {
     resetSession("idle");
     setPage("analysis");
   };
-  const enterAnalysis = () => {
+  const enterAnalysis = (nextMode = modeId) => {
+    if (nextMode !== modeId) setModeId(nextMode);
     resetSession("idle");
     setPage("analysis");
   };
@@ -233,7 +238,6 @@ function App() {
           <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} stats={stats} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
 
           <div className="support-grid"><EventLog logs={logs} defaultOpen={sessionState === "ended"} /></div>
-          <footer><span>PostureMate 웹 선행 데모 · 영상 저장 안 함</span><p>임시 FastAPI는 프레임 수신과 Demo Feature/Event 계약만 검증합니다. MediaPipe, 실제 CV 판정, WebSocket, SOLAR는 미연동이며 분석값과 코칭은 데모 데이터입니다.</p></footer>
         </main>
 
         {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} logs={logs} coachingMessage={coachingMessage} onRestart={() => resetSession("idle")} /></section>}

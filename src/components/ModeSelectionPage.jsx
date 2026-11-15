@@ -14,7 +14,6 @@ function ModeSelectionPage({ modeId, onSelectMode, onStartMode }) {
   return (
     <main className="page-shell mode-selection-page" id="mode-selection-page">
       <section className="selection-intro">
-        <span className="section-kicker">CHOOSE YOUR MODE</span>
         <h1>나에게 맞는 모드를 선택하세요</h1>
         <p>현재 상황과 목적에 맞는 자세 코칭 모드를 선택하여 효과적으로 연습할 수 있습니다.</p>
       </section>
@@ -24,10 +23,13 @@ function ModeSelectionPage({ modeId, onSelectMode, onStartMode }) {
           const mode = MODES[id];
           const active = id === modeId;
           return (
-            <button key={id} type="button" className={`mode-selection-card ${active ? "selected" : ""}`} aria-pressed={active} onClick={() => onSelectMode(id)}>
-              <div className="mode-card-visual"><ModeArtwork modeId={id} /><div className="mode-card-overlay"><strong>{mode.label}</strong><p>{mode.description}</p><span>선택하기 →</span></div></div>
-              <div className="mode-card-label"><span>{active ? "선택됨" : "모드"}</span><strong>{mode.label}</strong><small>{modeDetails[id].tagline}</small></div>
-            </button>
+            <article key={id} className={`mode-selection-card ${active ? "selected" : ""}`}>
+              <button className="mode-card-choice" type="button" aria-pressed={active} onClick={() => onSelectMode(id)}>
+                <div className="mode-card-visual"><ModeArtwork modeId={id} /><div className="mode-card-overlay"><strong>{mode.label}</strong><p>{mode.description}</p></div></div>
+                <div className="mode-card-label"><strong>{mode.label}</strong><small>{modeDetails[id].tagline}</small></div>
+              </button>
+              <button className="mode-card-start" type="button" aria-label={`${mode.label} 모드로 바로 시작`} onClick={() => onStartMode(id)}>선택</button>
+            </article>
           );
         })}
       </section>
@@ -35,7 +37,7 @@ function ModeSelectionPage({ modeId, onSelectMode, onStartMode }) {
       <section className="selected-mode-guide" aria-live="polite">
         <div className="selected-mode-summary"><ModeArtwork modeId={modeId} compact /><div><span>선택한 모드 안내</span><h2>{selected.label}</h2><p>{selected.description}</p></div></div>
         <ul>{detail.points.map((point) => <li key={point}><span aria-hidden="true">✓</span>{point}</li>)}</ul>
-        <button className="primary-button selected-start" type="button" onClick={onStartMode}>이 모드로 시작하기 <span aria-hidden="true">→</span></button>
+        <button className="primary-button selected-start" type="button" onClick={() => onStartMode(modeId)}>이 모드로 시작하기</button>
       </section>
     </main>
   );

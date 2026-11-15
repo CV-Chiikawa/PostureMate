@@ -30,11 +30,9 @@ function IntroPage({ onStart, onChooseMode }) {
     <main className="page-shell intro-page" id="intro-page">
       <section className="hero-section">
         <div className="hero-copy">
-          <span className="section-kicker">CONTEXT-AWARE POSTURE COACH</span>
           <h1>웹캠 하나로 시작하는<br /><em>바른 자세 습관</em></h1>
-          <p>면접, 거북목 방지, 발표 자세까지<br />상황에 맞는 기준으로 자세 변화를 살펴봅니다.</p>
-          <button className="primary-button hero-action" type="button" onClick={onStart}>분석 시작하기 <span aria-hidden="true">→</span></button>
-          <small>영상은 저장하지 않으며, 현재 자세 분석과 코칭은 데모 데이터입니다.</small>
+          <p>면접, 거북목 방지, 발표 자세까지<br />AI가 당신의 바른 자세를 도와드립니다.</p>
+          <button className="primary-button hero-action" type="button" onClick={onStart}>분석 시작하기</button>
         </div>
         <div className="hero-visual" aria-label="PostureMate 자세 코칭 데모 일러스트">
           <div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" />
@@ -78,7 +76,6 @@ function IntroPage({ onStart, onChooseMode }) {
           </div>
           <button className="carousel-arrow" type="button" aria-label="다음 모드" onClick={() => move(1)}>→</button>
         </div>
-        <div className="carousel-caption"><strong>{MODES[activeId].label}</strong><span>{introCopy[activeId]}</span><button type="button" onClick={() => onChooseMode(activeId)}>이 모드 선택하기</button></div>
       </section>
     </main>
   );

@@ -7,7 +7,7 @@ function Header({ page, mode, rubric, sessionState, inputMode, hasResult, onNavi
 
   return (
     <header className="app-header">
-      <button className="brand" type="button" onClick={() => onNavigate("intro")} disabled={settingsLocked} aria-label="PostureMate 소개로 이동"><span className="brand-mark" aria-hidden="true">P</span><span><strong>PostureMate</strong><small>Context-aware posture coach</small></span></button>
+      <button className="brand" type="button" onClick={() => onNavigate("intro")} disabled={settingsLocked} aria-label="PostureMate 소개로 이동"><span className="brand-mark" aria-hidden="true">P</span><span><strong>PostureMate</strong></span></button>
       <nav className="main-nav" aria-label="주요 메뉴">
         <button className={page === "intro" ? "active" : ""} type="button" disabled={settingsLocked} onClick={() => onNavigate("intro")}>소개</button>
         <button className={page === "modes" ? "active" : ""} type="button" disabled={settingsLocked} onClick={() => onNavigate("modes")}>모드 선택</button>
