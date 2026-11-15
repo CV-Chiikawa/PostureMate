@@ -14,9 +14,17 @@ def run(expect_fallback=False):
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"}, method="POST")
     active = None
     received_solar = False
-    for _ in range(90):
+    unmeasured = set()
+    for _ in range(110):
         _, packet = request_json(request)
         assert packet["analysis_source"] == "demo" and packet["session_id"] == session_id
+        status = packet["measurement_status"]
+        if status in ("calibrating", "unavailable"):
+            assert all(packet[field] is None for field in ("features", "state", "event", "coaching"))
+            active = None
+            if status not in unmeasured:
+                print(status, packet.get("measurement_reason", ""))
+                unmeasured.add(status)
         if packet["event"]:
             active = packet["event"]["event_id"]
             assert packet["coaching"]["source"] == "fallback"
@@ -29,7 +37,7 @@ def run(expect_fallback=False):
                 received_solar = True
                 print("SOLAR:", coaching["message"])
         if packet["state"] == "RECOVERED":
-            assert active and packet["coaching"] is None
+            assert unmeasured == {"calibrating", "unavailable"} and packet["coaching"] is None
             if not received_solar and not expect_fallback:
                 raise SystemExit("No Solar reply before recovery: check the server key, quota and five-second deadline.")
             print("PASS: recovered; no stale coaching")

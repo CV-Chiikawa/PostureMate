@@ -10,6 +10,9 @@ function formatValue(feature, value) {
 }
 
 function FeaturePanel({ featurePacket, evaluation, scenario, mode }) {
+  if (!featurePacket) {
+    return <section className="panel feature-panel"><div className="panel-heading"><h2>주요 자세 항목</h2></div><p>표시할 측정값이 없습니다.</p></section>;
+  }
   const resultMap = Object.fromEntries(evaluation.results.map((item) => [item.feature, item]));
   return (
     <section className="panel feature-panel">

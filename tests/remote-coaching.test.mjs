@@ -10,14 +10,33 @@ const event = (id, severity = "caution") => ({
 const hint = (id, source, message) => ({ event_id: id, source, message });
 const fallback = hint("A", "fallback", "기본 안내");
 const solar = hint("A", "solar", "생성된 코칭");
-function step(previous, { state = "CAUTION", currentEvent = null, coaching = null, session = "s", mode = "neck" } = {}) {
+function step(previous, { state = "CAUTION", currentEvent = null, coaching = null, session = "s", mode = "neck", packet = {} } = {}) {
   const data = {
     ok: true, frame: { received: true }, session_id: session, analysis_source: "demo",
     context: { mode, rubric: null }, state, event: currentEvent, coaching,
     features: { head_tilt: 0, shoulder_height_difference: 0, torso_lean: 0, forward_head_proxy: 0.12, body_sway: 0, landmark_visibility: 1 },
+    ...packet,
   };
   return toTemporalState(adaptAnalysisResponse(data, { sessionId: session, mode, rubric: "" }), previous);
 }
+
+test("보정·가림 응답은 이전 SOLAR를 지우고 기존 이벤트의 지연 응답을 무시한다", () => {
+  const prev = step({}, { currentEvent: event("A"), coaching: solar });
+  for (const measurement_status of ["calibrating", "unavailable"]) {
+    const next = step(prev, { packet: { measurement_status, features: null, state: null, event: null, coaching: solar } });
+    assert.equal(next.status, null);
+    assert.equal(next.coaching, null);
+    assert.equal(next.activeEventId, null);
+    assert.equal(step(next, { coaching: solar }).coaching, null);
+    assert.equal(step(next, { currentEvent: event("B"), coaching: hint("B", "fallback", "새 안내") }).coaching?.message, "새 안내");
+  }
+});
+
+test("측정 가능 여부를 검증하고 기존 프레임의 숫자 계약을 유지한다", () => {
+  assert.throws(() => step({}, { packet: { measurement_status: "unknown" } }), /measurement_status/);
+  assert.throws(() => step({}, { packet: { measurement_status: "valid", features: null } }), /features/);
+  assert.equal(step({}, { state: "NORMAL" }).status, "NORMAL");
+});
 
 test("기본 안내 → 이벤트 없는 프레임의 SOLAR → 다음 프레임 유지 → 복구 후 폐기", () => {
   let state = step({}, { currentEvent: event("A"), coaching: fallback });

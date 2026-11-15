@@ -113,14 +113,22 @@ def health():
 def demo_analysis(session_id: str, mode: str, rubric: str, frame_index: int):
     """Return a deterministic sequence for contract/UI testing, never CV output."""
     if mode == "neck":
+        if frame_index < 10:
+            return {"measurement_status": "calibrating", "state": None, "features": None, "event": None}
         # At 5 FPS each open event lasts 7 s, long enough to exercise the 5 s deadline.
-        phase = frame_index % 90
+        phase = (frame_index - 10) % 100
         if phase < 10:
             state = "NORMAL"
         elif phase < 45:
             state = "CAUTION"
         elif phase < 80:
             state = "WARNING"
+        elif phase < 90:
+            return {
+                "measurement_status": "unavailable",
+                "measurement_reason": "ear_or_shoulder_not_visible",
+                "state": None, "features": None, "event": None,
+            }
         else:
             state = "RECOVERED"
         features = dict(DEMO_FEATURES[state])
@@ -134,7 +142,7 @@ def demo_analysis(session_id: str, mode: str, rubric: str, frame_index: int):
                 "duration_sec": phase / 5, "confidence": 0.91,
                 "metrics": {"forward_head_proxy": features["forward_head_proxy"]},
             }
-        return state, features, event
+        return {"measurement_status": "valid", "state": state, "features": features, "event": event}
 
     sequence_index = frame_index % (len(DEMO_STATES) * DEMO_PHASE_FRAMES)
     state = DEMO_STATES[sequence_index // DEMO_PHASE_FRAMES]
@@ -151,7 +159,7 @@ def demo_analysis(session_id: str, mode: str, rubric: str, frame_index: int):
             "confidence": 0.91,
             "metrics": {"torso_lean_deg": 9.2},
         }
-    return state, dict(DEMO_FEATURES[state]), event
+    return {"measurement_status": "valid", "state": state, "features": dict(DEMO_FEATURES[state]), "event": event}
 
 
 @app.post("/process-frame")
@@ -187,9 +195,9 @@ async def process_frame(
         raise HTTPException(status_code=400, detail="Invalid JPEG frame") from error
 
     session = get_session(request.app.state.sessions, session_id)
-    state, features, event = demo_analysis(session_id, mode, rubric, session.frame_count)
+    analysis = demo_analysis(session_id, mode, rubric, session.frame_count)
     session.frame_count += 1
-    coaching = session.coaching.frame(request.app.state.solar, mode, state, event)
+    coaching = session.coaching.frame(request.app.state.solar, mode, analysis["state"], analysis["event"])
     return {
         "ok": True,
         "session_id": session_id,
@@ -201,8 +209,6 @@ async def process_frame(
             "byte_size": len(content),
         },
         "context": {"mode": mode, "rubric": rubric or None},
-        "features": features,
-        "state": state,
-        "event": event,
+        **analysis,
         "coaching": coaching,
     }

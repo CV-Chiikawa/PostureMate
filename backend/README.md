@@ -31,16 +31,16 @@ $env:UPSTAGE_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Upsta
 
 키를 설정한 FastAPI를 실행한 상태에서 두 번째 터미널로 저장소 루트에서 `npm ci`(최초 1회), `npm run dev`를 실행합니다. 기본 개발 주소는 `http://localhost:5173`입니다.
 
-1. **거북목 방지**를 선택하고 오른쪽 상단 메뉴에서 **분석 설정 → 입력 방식 → 실제 카메라**를 선택합니다. 카메라 권한을 허용하고 **분석 시작**을 누릅니다.
+1. **거북목 방지**를 선택하고 오른쪽 상단 메뉴에서 **분석 설정 → 입력 방식 → 실제 카메라**를 선택합니다. 카메라 권한을 허용하고 **분석 시작**을 누르면 기준 자세 보정 안내가 잠시 표시됩니다.
 2. 주의·경고가 시작되면 **기본 안내**가 먼저 뜹니다. 응답이 5초 안에 오면 같은 이벤트의 **SOLAR 코칭**으로 바뀝니다. 키가 없거나 요청에 실패하면 기본 안내가 유지됩니다.
-3. **정상 자세로 돌아왔습니다** 상태에서 이전 SOLAR 문장이 사라지고 복구 안내가 뜨는지 확인합니다. 상태는 카메라 자세가 아니라 아래의 데모 프레임 순서로 전환됩니다.
+3. 곧 **자세 측정 불가**와 카메라 각도 조정 안내가 나오며 이전 SOLAR 문장이 사라집니다. 뒤이어 **정상 자세로 돌아왔습니다** 안내가 표시됩니다. 상태는 아래 데모 프레임 순서로 바뀝니다.
 
 자동 회귀 검증: `node --test tests/remote-coaching.test.mjs`.
 
 ## 프레임과 호출 규칙
 
-- 기존 `POST /process-frame`의 multipart 필드와 응답은 유지합니다. `mode=neck`, `rubric=""`으로 JPEG를 보냅니다. 추가 필드는 최상위 `coaching`뿐입니다.
-- 첫 프레임부터 세면 11번째에 주의, 46번째에 경고, 81번째에 복구합니다. 이는 시연용 프레임 순서이며 임상 기준이 아닙니다. 기본 5 FPS에서 주의·경고가 각각 약 7초 지속됩니다.
+- `POST /process-frame`에 `mode=neck`, `rubric=""`으로 JPEG를 보냅니다. 응답의 `measurement_status`가 `calibrating` 또는 `unavailable`이면 `features`, `state`, `event`, `coaching`은 모두 `null`입니다. 가림에는 `measurement_reason: "ear_or_shoulder_not_visible"`를 보냅니다. 이 동안 대기 중인 코칭은 취소되고 복구 횟수도 오르지 않습니다. 정상적으로 측정한 응답의 값은 `valid`입니다.
+- 첫 세션 주기는 1번째부터 보정, 11번째 정상, 21번째 주의, 56번째 경고, 91번째 가림, 101번째 복구입니다. 기본 5 FPS에서 보정과 가림은 각각 약 2초, 주의와 경고는 각각 약 7초입니다. 판정은 모두 데모입니다.
 - 새 이벤트는 고정 문구와 즉시 반환합니다. 모델 입력은 모드·루브릭·유형·심각도·지속시간·측정값뿐입니다. JPEG·세션 ID는 전송하지 않습니다.
 - 같은 세션·유형·심각도는 호출 시작 후 **30초** 동안 재호출하지 않습니다. 주의와 경고는 별도로 셉니다. 같은 이벤트가 계속되는 동안은 30초를 넘겨도 다시 요청하지 않습니다.
 - SOLAR만 **최대 5초** 기다립니다. 시간 초과, 키 누락, 호출 오류, 사용할 수 없는 답변은 고정 문구로 끝나며 자동 재시도하지 않습니다. 프레임 전송은 계속됩니다.
@@ -52,8 +52,8 @@ $env:UPSTAGE_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Upsta
 ```json
 {
   "session_id": "sample", "state": "CAUTION",
-  "event": {"event_id": "demo:sample:neck:caution:10", "type": "forward_head_proxy", "severity": "caution"},
-  "coaching": {"event_id": "demo:sample:neck:caution:10", "source": "fallback", "message": "고개가 기준 자세보다 앞으로 나왔어요. 처음 편안하게 앉았던 위치로 돌아와 보세요."}
+  "event": {"event_id": "demo:sample:neck:caution:20", "type": "forward_head_proxy", "severity": "caution"},
+  "coaching": {"event_id": "demo:sample:neck:caution:20", "source": "fallback", "message": "고개가 기준 자세보다 앞으로 나왔어요. 처음 편안하게 앉았던 위치로 돌아와 보세요."}
 }
 ```
 
@@ -62,7 +62,7 @@ $env:UPSTAGE_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Upsta
 ```json
 {
   "session_id": "sample", "state": "CAUTION", "event": null,
-  "coaching": {"event_id": "demo:sample:neck:caution:10", "source": "solar", "message": "고개가 앞으로 나왔어요. 처음 앉았던 위치로 돌아와 보세요."}
+  "coaching": {"event_id": "demo:sample:neck:caution:20", "source": "solar", "message": "고개가 앞으로 나왔어요. 처음 앉았던 위치로 돌아와 보세요."}
 }
 ```
 

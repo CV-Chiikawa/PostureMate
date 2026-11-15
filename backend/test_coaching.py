@@ -57,6 +57,33 @@ class NeckCoachingTests(unittest.IsolatedAsyncioTestCase):
     async def caution(self, **kwargs):
         return await self.until(lambda d: d["event"] and d["event"]["severity"] == "caution", **kwargs)
 
+    async def test_calibration_and_occlusion_have_no_measurements_or_coaching(self):
+        first = await self.frame()
+        self.assertEqual(first.get("measurement_status"), "calibrating")
+        for field in ("features", "state", "event", "coaching"):
+            self.assertIsNone(first[field])
+        self.assertEqual(self.calls, [])
+
+        caution = await self.caution()
+        self.assertEqual(caution["measurement_status"], "valid")
+        await asyncio.wait_for(self.started.wait(), 1)
+        self.started.clear()
+        warning = await self.until(lambda d: d["state"] == "WARNING")
+        self.assertEqual(warning["coaching"]["source"], "fallback")
+        self.assertNotEqual(warning["event"]["event_id"], caution["event"]["event_id"])
+        await asyncio.wait_for(self.started.wait(), 1)
+        self.finished.clear()
+        blocked = await self.until(lambda d: d.get("measurement_status") == "unavailable")
+        self.assertEqual(blocked["measurement_reason"], "ear_or_shoulder_not_visible")
+        self.assertTrue(self.finished.is_set(), "occlusion should cancel the pending Solar call")
+        for field in ("features", "state", "event", "coaching"):
+            self.assertIsNone(blocked[field])
+        self.assertIsNone((await self.frame())["coaching"])
+        self.assertEqual(len(self.calls), 2)
+        recovered = await self.until(lambda d: d["state"] == "RECOVERED")
+        self.assertEqual(recovered["measurement_status"], "valid")
+        self.assertIsNone(recovered["coaching"])
+
     async def test_warning_is_immediate_and_coaching_arrives_on_a_later_frame_once(self):
         start = await asyncio.wait_for(self.caution(), 1)
         event = start["event"]

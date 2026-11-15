@@ -47,7 +47,6 @@ export function adaptAnalysisResponse(data, expected) {
   requireObject(data, "root");
   const frame = requireObject(data.frame, "frame");
   const context = requireObject(data.context, "context");
-  const features = requireObject(data.features, "features");
   if (data.ok !== true || typeof data.analysis_source !== "string" || !data.analysis_source || frame.received !== true) {
     throw new Error("Invalid analysis response: receipt/source");
   }
@@ -57,11 +56,29 @@ export function adaptAnalysisResponse(data, expected) {
   if (context.mode !== expected.mode || (context.rubric ?? "") !== (expected.rubric ?? "")) {
     throw new Error("Invalid analysis response: context mismatch");
   }
-  if (!VALID_STATES.has(data.state)) throw new Error("Invalid analysis response: unknown state");
-  for (const feature of REQUIRED_FEATURES) {
-    if (!Number.isFinite(features[feature])) throw new Error(`Invalid analysis response: features.${feature}`);
+  const measurementStatus = data.measurement_status === undefined ? "valid" : data.measurement_status;
+  if (!["valid", "calibrating", "unavailable"].includes(measurementStatus)) {
+    throw new Error("Invalid analysis response: measurement_status");
   }
-  const event = normalizeEvent(data.event, context);
+  const measured = measurementStatus === "valid";
+  let featurePacket = null;
+  let event = null;
+  if (measured) {
+    const features = requireObject(data.features, "features");
+    if (!VALID_STATES.has(data.state)) throw new Error("Invalid analysis response: unknown state");
+    for (const feature of REQUIRED_FEATURES) {
+      if (!Number.isFinite(features[feature])) throw new Error(`Invalid analysis response: features.${feature}`);
+    }
+    featurePacket = {
+      source: data.analysis_source === "demo" ? "remote-demo" : "remote",
+      capturedAt: Date.now(),
+      scenarioId: `remote-${data.state.toLowerCase()}`,
+      values: { ...features },
+    };
+    event = normalizeEvent(data.event, context);
+  } else if (data.features !== null || data.state !== null || data.event !== null) {
+    throw new Error("Invalid analysis response: unmeasured frame");
+  }
   return {
     sessionId: data.session_id,
     analysisSource: data.analysis_source,
@@ -72,14 +89,11 @@ export function adaptAnalysisResponse(data, expected) {
       byteSize: frame.byte_size,
     },
     context: { mode: context.mode, rubric: context.rubric },
-    featurePacket: {
-      source: data.analysis_source === "demo" ? "remote-demo" : "remote",
-      capturedAt: Date.now(),
-      scenarioId: `remote-${data.state.toLowerCase()}`,
-      values: { ...features },
-    },
+    measurementStatus,
+    measurementReason: data.measurement_reason === "ear_or_shoulder_not_visible" ? data.measurement_reason : null,
+    featurePacket,
     state: data.state,
     event,
-    coaching: normalizeCoaching(data.coaching),
+    coaching: measured ? normalizeCoaching(data.coaching) : null,
   };
 }

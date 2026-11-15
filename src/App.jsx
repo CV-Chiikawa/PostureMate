@@ -67,15 +67,23 @@ function App() {
   const mode = MODES[modeId];
   const scenario = MOCK_SCENARIOS[scenarioIndex];
   const mockFeaturePacket = useMemo(() => mockFeatureProvider.getFeatures(scenarioIndex), [scenarioIndex]);
-  const featurePacket = inputMode === "live" && remoteAnalysis ? remoteAnalysis.featurePacket : mockFeaturePacket;
-  const evaluation = useMemo(() => evaluateContext(featurePacket, modeId, rubric), [featurePacket, modeId, rubric]);
+  const liveAnalysis = inputMode === "live" ? remoteAnalysis : null;
+  const featurePacket = liveAnalysis ? liveAnalysis.featurePacket : mockFeaturePacket;
+  const evaluation = useMemo(() => featurePacket ? evaluateContext(featurePacket, modeId, rubric) : null, [featurePacket, modeId, rubric]);
+  const measurementNotice = liveAnalysis?.measurementStatus === "calibrating"
+    ? { title: "기준 자세 보정 중", message: "기준 자세를 측정 중입니다. 잠시 자세를 유지해 주세요." }
+    : liveAnalysis?.measurementStatus === "unavailable"
+      ? { title: "자세 측정 불가", message: liveAnalysis.measurementReason === "ear_or_shoulder_not_visible"
+          ? "귀와 어깨가 보이도록 카메라 각도를 조정해 주세요."
+          : "몸이 화면에 잘 보이도록 카메라를 조정해 주세요." }
+      : null;
   const { videoRef, devices: cameraDevices, deviceId: cameraDeviceId, selectDevice: selectCameraDevice, permission: cameraPermission, error: cameraError, start: startCamera, retry: retryCamera, stop: stopCamera } = useCamera();
   const liveNeck = inputMode === "live" && modeId === "neck";
   const coaching = liveNeck ? temporal.coaching : null;
   const coachingLabel = coaching?.source === "solar" ? "SOLAR 코칭" : liveNeck ? "기본 안내" : "데모 코칭";
   const coachingMessage = liveNeck && sessionState === "ended"
     ? "이번 세션이 끝났습니다. 다시 분석을 시작하면 새 안내를 받을 수 있어요."
-    : coaching?.message ?? mockCoachingProvider.getMessage(temporal, mode);
+    : measurementNotice?.message ?? coaching?.message ?? mockCoachingProvider.getMessage(temporal, mode);
 
   const addLog = useCallback((status, message) => {
     const entry = { id: logIdRef.current++, time: new Date().toLocaleTimeString("ko-KR", { hour12: false }), status, message };
@@ -237,8 +245,8 @@ function App() {
           <div className="analysis-heading"><div><span className="section-kicker">{phaseCopy[0]}</span><h1>{mode.label}{modeId === "interview" ? ` · 기준 ${rubric}` : ""}</h1></div><div><span>{phaseCopy[1]}</span><b>{inputMode === "live" ? "실제 영상 / 자세 분석은 데모 데이터" : "데모 입력 / 데모 분석"}</b></div></div>
 
           <div className="focus-layout">
-            <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket.values.landmark_visibility} temporalStatus={temporal.status} sessionState={sessionState} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
-            <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} /><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><CoachingPanel label={coachingLabel} message={coachingMessage} /></aside>
+            <CameraPanel mode={mode} scenario={scenario} inputMode={inputMode} videoRef={videoRef} visibility={featurePacket?.values.landmark_visibility} temporalStatus={temporal.status} sessionState={sessionState} cameraPermission={cameraPermission} cameraError={cameraError} onCameraRetry={retryCamera} />
+            <aside className="status-stack"><StatusPanel temporal={temporal} evaluation={evaluation} measurementTitle={measurementNotice?.title} /><FeaturePanel featurePacket={featurePacket} evaluation={evaluation} scenario={scenario} mode={mode} /><CoachingPanel label={coachingLabel} message={coachingMessage} /></aside>
           </div>
 
           <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} stats={stats} scenario={scenario} scenarioIndex={scenarioIndex} scenarioCount={MOCK_SCENARIOS.length} inputMode={inputMode} onStart={startSession} onPause={() => { setSessionState("paused"); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} onPrevious={() => setScenarioIndex((current) => (current - 1 + MOCK_SCENARIOS.length) % MOCK_SCENARIOS.length)} onNext={() => setScenarioIndex((current) => (current + 1) % MOCK_SCENARIOS.length)} />
