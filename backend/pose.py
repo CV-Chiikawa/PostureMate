@@ -3,6 +3,8 @@
 import math
 from collections import deque
 from backend.neckon import NeckMonitor
+from backend.calibration import PostureReference, raw_posture
+from backend.placement import hand_regions, hand_issue
 from uuid import uuid4
 
 
@@ -54,27 +56,6 @@ def motion_range(history, now, x, width, repeated_only):
     return (max(positions) - min(positions)) / width
 
 
-def hand_regions(p, width):
-    left, right = p[25], p[26]
-    middle = ((left[0] + right[0]) / 2, (left[1] + right[1]) / 2)
-    separation = abs(left[0] - right[0]) / width
-
-    def region(wrist):
-        if separation <= 0.22 and math.dist(wrist[:2], middle) <= width * 0.28:
-            return "center"
-        distance, name = min(
-            (math.dist(wrist[:2], knee[:2]), name)
-            for knee, name in [(left, "left_knee"), (right, "right_knee")]
-        )
-        return name if distance <= width * 0.32 else "outside"
-
-    return {
-        "left_hand_region": region(p[15]),
-        "right_hand_region": region(p[16]),
-        "knee_distance": separation,
-    }
-
-
 def unmeasured(status="unavailable", reason="body_not_visible"):
     return {
         "measurement_status": status,
@@ -85,23 +66,11 @@ def unmeasured(status="unavailable", reason="body_not_visible"):
     }
 
 
-def hand_issue(features, rubric):
-    if rubric == "A":
-        if features["knee_distance"] > 0.22:
-            return "knees_apart"
-        if features["left_hand_region"] != "center" or features["right_hand_region"] != "center":
-            return "hands_off_center"
-    else:
-        if features["knee_distance"] < 0.23:
-            return "knees_close"
-        if features["left_hand_region"] != "left_knee" or features["right_hand_region"] != "right_knee":
-            return "hands_off_knees"
-    return None
-
-
 class PoseSession:
     def __init__(self):
         self.neck_monitor = NeckMonitor()
+        self.reference = PostureReference()
+        self.reference_mode = None
         self.motion = deque(maxlen=240)
         self.last = None
         self.reset_event()
@@ -127,6 +96,7 @@ class PoseSession:
         self.reset_event()
         self.motion.clear()
         self.neck_monitor.reset_tracking()
+        self.reference.interrupt()
 
     def observe_neck(self, points, now):
         features, measured_state, reason = self.neck_monitor.observe(points, now)
@@ -178,23 +148,26 @@ class PoseSession:
         features = {
             "head_tilt": offset_angle(p[7][1] - p[8][1], p[7][0] - p[8][0]),
             "shoulder_height_difference": abs(left[1] - right[1]) / width,
-            "body_sway": motion_range(self.motion, now, cx, width, mode == "presentation"),
+            "body_sway": motion_range(self.motion, now, cx, width, True) if self.reference.baseline else 0.,
             "landmark_visibility": min(p[i][2] for i in required),
         }
-        if 23 in p and 24 in p:
-            features["torso_lean"] = offset_angle(
-                cx - (p[23][0] + p[24][0]) / 2, cy - (p[23][1] + p[24][1]) / 2
-            )
-            if mode == "interview":
-                joints = [getattr(points[i], "world", None) for i in (11, 12, 23, 24)]
-                if all(joints):
-                    ls, rs, lh, rh = joints
-                    forward = max(0., lh.z + rh.z - ls.z - rs.z)
-                    vertical = lh.y + rh.y - ls.y - rs.y
-                    if vertical > 0 and math.isfinite(forward):
-                        features["torso_lean"] = max(features["torso_lean"], offset_angle(forward, vertical))
+        if not all(i in p for i in (23, 24)):
+            return None, "hips_not_visible"
+        raw = raw_posture(points, p, self.frame_size[0], self.frame_size[1], mode)
+        if raw is None:
+            return None, "reference_view_required"
+        if mode == "interview" and raw['forward'] is None:
+            return None, "forward_proxy_unavailable"
+        if self.reference.baseline is None and abs(raw['head_shoulder_angle']) > 15:
+            return None, "reference_neutral_required"
+        reason = self.reference.observe(raw, now)
+        if reason:
+            return None, reason
+        features.update(self.reference.relative(raw))
+        features['landmark_visibility'] = min(features['landmark_visibility'], p[23][2], p[24][2])
         if mode == "interview":
-            features.update(hand_regions(p, width))
+            features.update(hand_regions(p, width, rubric=self.rubric,
+                                         knee_reference=self.reference.baseline["knee"]))
         return features, None
 
     def transition(self, issue, now):
@@ -221,13 +194,25 @@ class PoseSession:
         self.last = now
         if mode == "neck":
             return self.observe_neck(points, now)
+        if self.reference_mode != (mode, rubric):
+            self.reference = PostureReference()
+            self.reference_mode = (mode, rubric)
+            self.reset_event()
+            self.motion.clear()
+        self.rubric = rubric
+        self.frame_size = (width, height)
         p = visible_points(
             points, width, height, {"interview": 0.65, "presentation": 0.55}[mode]
         )
         features, reason = self.frontal(p, mode, now, points)
         if reason:
-            self.interrupt()
-            return unmeasured(reason=reason)
+            self.reset_event()
+            self.motion.clear()
+            collecting = reason in {"reference_collecting", "reference_unstable", "reference_timeout"}
+            if not collecting:
+                self.reference.interrupt()
+            return {**unmeasured("calibrating" if collecting else "unavailable", reason),
+                    "calibration": self.reference.packet(now)}
         ratios = {k: features[k] / limit for k, limit in LIMITS[mode].items() if k in features}
         if mode == "interview":
             placement = hand_issue(features, rubric)
@@ -240,7 +225,8 @@ class PoseSession:
         observation = placement if issue == "hand_placement" else issue
         if alert and self.report_observation(observation, self.status != before, now):
             metrics = (
-                {k: features[k] for k in ("left_hand_region", "right_hand_region", "knee_distance")}
+                {k: features[k] for k in ("left_hand_region", "right_hand_region", "knee_distance", "knee_reference_distance",
+                                            "knee_placement_status", "hand_placement_status", "placement_issues")}
                 if issue == "hand_placement"
                 else {issue: features[issue]}
             )
@@ -259,6 +245,7 @@ class PoseSession:
             }
         return {
             "measurement_status": "valid",
+            "calibration": self.reference.packet(now),
             "features": features,
             "state": self.status,
             "event": event,

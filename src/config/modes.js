@@ -4,7 +4,7 @@ export const MODES = {
     label: "모의면접",
     shortLabel: "INTERVIEW",
     description: "정면 착석 자세의 안정성과 선택한 손·무릎 배치를 확인합니다.",
-    guide: "얼굴부터 무릎까지 보이도록 정면에 앉아 카메라를 조금 뒤로 배치하세요.",
+    guide: "얼굴·양손·골반·무릎이 보이도록 정면에 앉아 바른 기준 자세를 5초간 유지하세요.",
     requiredVisibility: 0.65,
     features: {
       head_tilt: { threshold: 7, label: "머리 좌우 기울기", unit: "°" },
@@ -26,7 +26,7 @@ export const MODES = {
     label: "발표",
     shortLabel: "PRESENTATION",
     description: "자연스러운 이동은 허용하고 지속적인 기울기와 반복 흔들림을 확인합니다.",
-    guide: "상체와 좌우 움직임이 보이도록 정면 중심의 여유 있는 구도를 맞추세요.",
+    guide: "얼굴부터 골반까지 보이게 서서 바른 기준 자세를 5초간 유지하세요.",
     requiredVisibility: 0.55,
     features: {
       head_tilt: { threshold: 10, label: "머리 좌우 기울기", unit: "°" },
@@ -40,17 +40,23 @@ export const MODES = {
 export const RUBRICS = {
   A: {
     label: "Rubric A",
-    description: "무릎을 상대적으로 모으고 양손을 중앙 무릎 영역에 배치",
+    description: "무릎을 편하게 모은 간격을 기준으로, 양손을 무릎 중앙에 모아 배치",
   },
   B: {
     label: "Rubric B",
-    description: "무릎을 자연스럽게 두고 양손을 각각 대응 무릎 영역에 배치",
+    description: "자연스럽게 벌린 무릎 간격을 기준으로, 각 손을 같은 쪽 허벅지·무릎에 배치",
   },
 };
 
 export const NECK_LEVEL_LABELS = { GOOD: "양호", CAUTION: "주의", BAD: "위험" };
 
 export const FEATURE_LABELS = {
+  torso_lateral_lean: "상체 좌우 변화량",
+  torso_forward_proxy: "상체 전방 변화량 (추정)",
+  raw_torso_lateral_lean: "상체 좌우 원본 영상값",
+  raw_torso_forward_proxy: "상체 전방 원본 추정값",
+  baseline_torso_lateral_lean: "상체 좌우 기준값",
+  baseline_torso_forward_proxy: "상체 전방 기준 추정값",
   neck_score: "NeckOn 점수", neck_level: "NeckOn 판정", neck_view: "카메라 구도",
   forward_score: "정면 전방 점수", imbalance_score: "정면 비대칭 점수",
   nose_depth_delta: "코 깊이 변화", ear_depth_delta: "귀 깊이 변화",
@@ -66,5 +72,13 @@ export const FEATURE_LABELS = {
   right_hand_region: "오른손 위치",
   knee_distance: "무릎 사이 거리",
   landmark_visibility: "신체 포인트 가시성",
-  hand_placement: "손·무릎 배치",
+  hand_placement: "손 배치",
+  knee_placement: "무릎 간격",
+  knee_reference_distance: "기준 무릎 중심 간격",
+  knee_distance_ratio: "기준 대비 무릎 간격 배율",
+  knee_placement_status: "무릎 판정",
+  hand_placement_status: "손 배치 판정",
+  left_hand_source: "왼손 추정 방식",
+  right_hand_source: "오른손 추정 방식",
+  placement_issues: "손·무릎 문제 항목",
 };

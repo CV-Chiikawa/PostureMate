@@ -28,6 +28,7 @@ FEEDBACK = {
     "torso_lean": ("상체가 기울어져 있습니다.", "허리를 편안하게 세워 주세요."),
     "body_sway": ("상체가 좌우로 흔들리고 있습니다.", "몸의 중심을 잠시 잡아 주세요."),
     "knees_apart": ("무릎 사이가 벌어져 있습니다.", "양쪽 무릎을 조금 모아 주세요."),
+    "hands_apart": ("양손이 서로 떨어져 있습니다.", "무릎 가운데에서 두 손을 조금 모아 주세요."),
     "hands_off_center": ("손이 양쪽 무릎 가운데에 모여 있지 않습니다.", "두 손을 무릎 가운데에 모아 주세요."),
     "knees_close": ("양쪽 무릎이 가까이 붙어 있습니다.", "무릎 사이를 조금 벌려 주세요."),
     "hands_off_knees": ("손이 같은 쪽 무릎 위에 놓여 있지 않습니다.", "양손을 각각 같은 쪽 무릎 위에 올려 주세요."),
@@ -59,13 +60,18 @@ async def solar_message(client, key, event, deadline):
             text = choice["message"]["content"]
             if (choice.get("finish_reason") not in (None, "stop") or not isinstance(text, str)
                     or not text.strip() or asyncio.get_running_loop().time() >= deadline):
+                logger.warning("Solar coaching unavailable: incomplete_response")
                 return None
             advice = text.strip()
             sentence = advice.removesuffix(".")
             if (len(advice) > 100 or not sentence.endswith(("세요", "십시오"))
                     or any(mark in sentence for mark in ".!?\n")):
+                logger.warning("Solar coaching unavailable: invalid_advice_format")
                 return None
             return f"{observation} {sentence}."
+    except httpx.HTTPStatusError as exc:
+        logger.warning("Solar coaching unavailable: HTTP %s", exc.response.status_code)
+        return None
     except (TimeoutError, httpx.HTTPError, ValueError, LookupError, TypeError, AttributeError) as exc:
         # Never log Authorization, prompt, response body, or session identifiers.
         logger.warning("Solar coaching unavailable: %s", type(exc).__name__)

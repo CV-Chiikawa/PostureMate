@@ -19,8 +19,8 @@ class LiveTransportTests(unittest.TestCase):
     def test_live_interview_gets_rubric_coaching_and_tracks_one_episode(self):
         with patch.dict("os.environ", {"UPSTAGE_API_KEY": ""}), TestClient(app) as client:
             with (
-                patch.object(app.state.detector, "detect", return_value=front()),
-                patch("backend.app.frame_time", side_effect=[i / 5 for i in range(28)], create=True),
+                patch.object(app.state.detector, "detect", side_effect=[front(spread=.09)]*26+[front()]*28),
+                patch("backend.app.frame_time", side_effect=[i / 5 for i in range(54)], create=True),
             ):
                 results = [
                     client.post(
@@ -28,7 +28,7 @@ class LiveTransportTests(unittest.TestCase):
                         data={"session_id": "s", "source": "mediapipe", "mode": "interview", "rubric": "B"},
                         files={"file": ("f.jpg", jpeg(), "image/jpeg")},
                     ).json()
-                    for _ in range(28)
+                    for _ in range(54)
                 ]
         events = [p for p in results if p["event"]]
         self.assertEqual([p["state"] for p in events], ["CAUTION", "WARNING"])

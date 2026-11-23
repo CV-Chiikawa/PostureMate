@@ -79,8 +79,10 @@ app.add_middleware(
 
 
 @app.get("/health")
-def health():
-    return {"ok": True, "service": "posturemate", "analysis_source": "mediapipe", "sources": ["mediapipe"]}
+def health(request: Request):
+    return {"ok": True, "service": "posturemate", "analysis_source": "mediapipe",
+            "sources": ["mediapipe"],
+            "solar_configured": bool(os.getenv("UPSTAGE_API_KEY", request.app.state.saved_solar_key))}
 
 
 @app.post("/process-frame")

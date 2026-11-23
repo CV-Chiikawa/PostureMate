@@ -82,6 +82,7 @@ export function adaptAnalysisResponse(data, expected) {
       byteSize: frame.byte_size,
     },
     context: { mode: context.mode, rubric: context.rubric },
+    calibration: data.calibration ?? null,
     measurementStatus,
     measurementReason: data.measurement_reason ?? null,
     activeIssue: measured ? data.active_issue ?? null : null,

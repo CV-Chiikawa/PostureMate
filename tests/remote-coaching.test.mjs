@@ -133,3 +133,27 @@ test("잘못된 선택 필드가 정상적인 자세 판정이나 복구를 막�
     assert.equal(recovered.coaching, null);
   }
 });
+
+test("개인 기준 측정 진행률과 구도 변경 사유를 보존한다", () => {
+  const data = {ok:true,frame:{received:true},context:{mode:"interview",rubric:"A"},session_id:"s",
+    analysis_source:"mediapipe",measurement_status:"calibrating",measurement_reason:"reference_collecting",
+    features:null,state:null,event:null,calibration:{status:"collecting",progress:.6,required_seconds:5}};
+  const r=adaptAnalysisResponse(data,{sessionId:"s",mode:"interview",rubric:"A"});
+  assert.equal(r.calibration.progress,.6);
+  assert.equal(r.measurementReason,"reference_collecting");
+});
+
+test("무릎 경고가 있어도 올바른 손 배치는 별도로 양호다", () => {
+  const r=evaluateContext({values:{head_tilt:0,shoulder_height_difference:0,torso_lean:0,body_sway:0,
+    landmark_visibility:1,left_hand_region:"center",right_hand_region:"center",knee_distance:1.3,
+    knee_reference_distance:.825,knee_placement_status:"too_wide",hand_placement_status:"correct"}},"interview","A");
+  assert.equal(r.results.find(x=>x.feature==="hand_placement").isIssue,false);
+  assert.equal(r.results.find(x=>x.feature==="knee_placement").isIssue,true);
+});
+
+test("개인 기준에서 모은 무릎의 큰 중심 간격도 무조건 경고하지 않는다", () => {
+  const r=evaluateContext({values:{head_tilt:0,shoulder_height_difference:0,torso_lean:0,body_sway:0,
+    landmark_visibility:1,left_hand_region:"center",right_hand_region:"center",knee_distance:.825,
+    knee_reference_distance:.825,knee_placement_status:"within_reference",hand_placement_status:"correct"}},"interview","A");
+  assert.equal(r.primary,null);
+});

@@ -18,6 +18,7 @@ import { useCamera } from "./hooks/useCamera";
 import { useFrameSampler } from "./hooks/useFrameSampler";
 import { getRemoteEventKey, stableDisplay, toTemporalState } from "./services/RemoteAnalysisProvider";
 import { evaluateContext } from "./utils/evaluator";
+import { referenceNotice } from "./utils/calibrationGuide";
 
 const GUIDE_COOKIE_NAME = "posture-coach-hide-guide";
 const GUIDE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -37,6 +38,11 @@ const INITIAL_TEMPORAL_STATE = { status: null, eventLabel: null, coaching: null 
 const initialStats = () => ({ caution: 0, warning: 0, recovered: 0, eventCounts: {}, issueDurations: {} });
 
 const measurementGuides = {
+  forward_proxy_unavailable: "상체 전방 변화 추정이 불안정합니다. 정면에서 골반까지 보이게 구도를 조정해 주세요.",
+  hips_not_visible: "양쪽 골반까지 화면에 들어오도록 카메라를 맞춰 주세요.",
+  reference_view_required: "얼굴·어깨·골반이 충분히 보이도록 정면 구도를 맞춰 주세요.",
+  reference_neutral_required: "고개를 어깨와 나란히 세우고 기준 자세를 준비해 주세요.",
+  framing_changed: "기준 측정 때와 거리가 달라졌습니다. 처음 위치로 돌아오거나 ‘기준 자세 다시 측정’을 눌러 주세요.",
   ear_or_shoulder_not_visible: "얼굴과 어깨가 함께 보이도록 카메라를 맞춰 주세요.",
   upper_body_not_visible: "양쪽 귀와 어깨가 보이도록 정면을 향해 주세요.",
   wrist_or_knee_not_visible: "양손과 양쪽 무릎까지 보이도록 카메라를 뒤로 옮겨 주세요.",
@@ -55,7 +61,7 @@ const measurementGuides = {
 const framingByMode = {
   neck: "얼굴과 어깨가 함께 보이도록 카메라를 맞춰 주세요.",
   interview: "얼굴부터 양손과 무릎까지 화면에 들어오도록 카메라를 맞춰 주세요.",
-  presentation: "얼굴과 상체가 함께 보이도록 카메라를 맞춰 주세요.",
+  presentation: "얼굴부터 골반까지 함께 보이도록 카메라를 맞춰 주세요.",
 };
 
 function App() {
@@ -101,7 +107,9 @@ function App() {
     : liveAnalysis?.measurementReason === "view_inference"
     ? { title: "카메라 구도 확인 중", message: "정면 또는 비스듬한 옆모습으로 잠시 자세를 유지하세요." }
     : liveAnalysis?.measurementStatus === "calibrating"
-    ? { title: "기준 자세 보정 중", message: "기준 자세를 측정 중입니다. 편안한 자세로 5초간 앉아 주세요." }
+    ? (modeId === "neck"
+      ? {title:"기준 자세 보정 중",message:"기준 자세를 측정 중입니다. 편안한 자세로 5초간 앉아 주세요."}
+      : referenceNotice(liveAnalysis.measurementReason, liveAnalysis.calibration, modeId, rubric))
     : liveAnalysis?.measurementStatus === "unavailable"
       ? { title: "자세 측정 불가", message: measurementGuides[liveAnalysis.measurementReason] || framingByMode[modeId] }
     : liveAnalysis?.measurementReason === "camera_unavailable"
@@ -224,6 +232,11 @@ function App() {
   const changeMode = (nextMode) => { if (nextMode !== modeId) { setModeId(nextMode); resetSession(); } };
   const changeRubric = (nextRubric) => { if (nextRubric !== rubric) { setRubric(nextRubric); resetSession(); } };
   const startSession = () => { setFrameSessionId(crypto.randomUUID()); resetSession("running"); addLog("세션", `분석 시작 · ${mode.label}${modeId === "interview" ? ` · 기준 ${rubric}` : ""}`); };
+  const recalibrate = () => {
+    setFrameSessionId(crypto.randomUUID());
+    clearMeasurement();
+    addLog("세션", "기준 자세 다시 측정 · 이전 연습 기록 유지");
+  };
   const endSession = () => {
     setSessionState("ended");
     clearMeasurement();
@@ -265,7 +278,7 @@ function App() {
   return (
     <div className="app-shell">
       {showGuide && <WelcomeModal onClose={closeGuide} showDontShowAgain={!guideOpenedManually} />}
-      {showSettings && <ModeSelector modeId={modeId} rubric={rubric} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} cameraPermission={cameraPermission} onModeChange={changeMode} onRubricChange={changeRubric} onCameraDeviceChange={selectCameraDevice} onClose={() => setShowSettings(false)} />}
+      {showSettings && <ModeSelector modeId={modeId} rubric={rubric} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} cameraPermission={cameraPermission} onModeChange={changeMode} onRubricChange={changeRubric} onCameraDeviceChange={(id) => { selectCameraDevice(id); resetSession(); }} onClose={() => setShowSettings(false)} />}
       <Header page={page} mode={mode} rubric={rubric} sessionState={sessionState} hasResult={sessionState === "ended"} onNavigate={navigatePage} onShowResult={showResult} onShowGuide={() => { setGuideOpenedManually(true); setShowGuide(true); }} onShowSettings={() => setShowSettings(true)} />
 
       {page === "intro" && <IntroPage onStart={() => setPage("modes")} onChooseMode={chooseModeFromIntro} />}
@@ -284,7 +297,7 @@ function App() {
             </aside>
           </div>
 
-          <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} stats={stats} cameraReady={cameraPermission === "granted"} onStart={startSession} onPause={() => { setSessionState("paused"); clearMeasurement(); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} />
+          <ControlPanel sessionState={sessionState} elapsedMs={elapsedMs} stats={stats} cameraReady={cameraPermission === "granted"} onRecalibrate={modeId === "neck" ? null : recalibrate} onStart={startSession} onPause={() => { setSessionState("paused"); clearMeasurement(); addLog("세션", "분석 일시정지"); }} onResume={() => { setSessionState("running"); addLog("세션", "분석 계속"); }} onEnd={endSession} />
 
           <div className="support-grid"><EventLog logs={logs} defaultOpen={sessionState === "ended"} /></div>
           <footer><span>PostureMate · 영상 저장 안 함</span><p>실제 카메라로 연습하면 JPEG를 분석 서버로 보냅니다. SOLAR 코칭에는 자세 이벤트의 관찰값만 사용합니다.</p></footer>

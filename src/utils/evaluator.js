@@ -1,30 +1,19 @@
 import { FEATURE_LABELS, MODES, NECK_LEVEL_LABELS } from "../config/modes.js";
 
-function handPlacementEvaluation(values, rubric) {
-  const isRubricA = rubric === "A";
-  const hasHandFeatures = typeof values.left_hand_region === "string"
-    && typeof values.right_hand_region === "string"
-    && typeof values.knee_distance === "number";
-  if (!hasHandFeatures) {
-    return { feature: "hand_placement", label: `손·무릎 배치 · Rubric ${rubric}`, value: "수신 안 됨", active: false, isIssue: false, ratio: 0 };
-  }
-  const handsMatch = isRubricA
-    ? values.left_hand_region === "center" && values.right_hand_region === "center"
-    : values.left_hand_region === "left_knee" && values.right_hand_region === "right_knee";
-  const kneesMatch = isRubricA ? values.knee_distance <= 0.22 : values.knee_distance >= 0.23;
-
-  return {
-    feature: "hand_placement",
-    label: `손·무릎 배치 · Rubric ${rubric}`,
-    value: handsMatch && kneesMatch ? "조건 충족" : "조건 이탈",
-    threshold: isRubricA ? "중앙 손 / 무릎 ≤ 0.22" : "각 무릎 손 / 무릎 ≥ 0.23",
-    active: true,
-    isIssue: !(handsMatch && kneesMatch),
-    ratio: handsMatch && kneesMatch ? 0 : 1.4,
-  };
+function placementEvaluations(values) {
+  // Use the backend's personal-reference decisions; do not duplicate fixed knee thresholds.
+  const hand = values.hand_placement_status;
+  const knee = values.knee_placement_status;
+  return [
+    {feature:"hand_placement",label:"손 배치",value:hand === "correct" ? "조건 충족" : "조건 이탈",
+      active:["correct","incorrect"].includes(hand),isIssue:hand === "incorrect",ratio:hand === "incorrect" ? 1.4 : 0},
+    {feature:"knee_placement",label:"무릎 간격",value:knee === "within_reference" ? "기준 범위" : "기준 이탈",
+      active:["within_reference","too_wide","too_close"].includes(knee),
+      isIssue:["too_wide","too_close"].includes(knee),ratio:["too_wide","too_close"].includes(knee) ? 1.4 : 0},
+  ];
 }
 
-export function evaluateContext(featurePacket, modeId, rubric = "A") {
+export function evaluateContext(featurePacket, modeId, _rubric = "A") {
   const mode = MODES[modeId];
   const values = featurePacket.values;
   if (modeId === "neck") {
@@ -47,7 +36,7 @@ export function evaluateContext(featurePacket, modeId, rubric = "A") {
   }
 
   const results = Object.entries(FEATURE_LABELS)
-    .filter(([feature]) => feature !== "landmark_visibility" && feature !== "hand_placement")
+    .filter(([feature]) => feature !== "landmark_visibility" && feature !== "hand_placement" && feature !== "knee_placement")
     .map(([feature, defaultLabel]) => {
       const config = mode.features[feature];
       const value = values[feature];
@@ -68,7 +57,7 @@ export function evaluateContext(featurePacket, modeId, rubric = "A") {
     });
 
   if (modeId === "interview") {
-    results.push(handPlacementEvaluation(values, rubric));
+    results.push(...placementEvaluations(values));
   }
 
   const issues = results.filter((result) => result.active && result.isIssue);

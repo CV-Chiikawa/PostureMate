@@ -56,6 +56,49 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || "playwright-core");
         await page.unroute("**/process-frame");
         await page.getByRole("heading",{name:"자세 측정 불가"}).waitFor();
       }
+      if (mode !== "거북목 방지") {
+        let currentSession = payload.session_id;
+        let referenceTimedOut = false;
+        await page.route("**/process-frame", route => {
+          currentSession = route.request().postData().match(/name="session_id"\r\n\r\n([^\r\n]+)/)[1];
+          return route.fulfill({json:{...payload,session_id:currentSession,
+            measurement_status:"calibrating",measurement_reason:referenceTimedOut ? "reference_timeout" : "reference_collecting",
+            calibration:{status:"collecting",progress:.4,required_seconds:5,minimum_samples:15,
+              accepted_samples:4,unstable_feature:referenceTimedOut ? "knee" : null}}});
+        });
+        await page.getByRole("heading",{name:"기준 자세 보정 중"}).waitFor();
+        assert.match(await page.locator(".coaching-panel blockquote").innerText(), /40%/);
+        referenceTimedOut = true;
+        await page.getByRole("heading",{name:"기준 자세 측정 지연"}).waitFor();
+        assert.match(await page.locator(".coaching-panel blockquote").innerText(), /무릎 간격.*4\/15/);
+        referenceTimedOut = false;
+        const previousSession = currentSession;
+        const changedRequest = page.waitForRequest(r => r.url().endsWith("/process-frame") && !r.postData().includes(previousSession));
+        await button("기준 자세 다시 측정").click();
+        await changedRequest;
+        await page.unroute("**/process-frame");
+        // Refresh the packet for the newly created session used by later UI scenarios.
+        const resumed = await page.waitForResponse(r=>r.url().endsWith("/process-frame") && r.request().method()==="POST");
+        Object.assign(payload,await resumed.json());
+        await page.getByRole("heading",{name:"자세 측정 불가"}).waitFor();
+        console.log(mode, "reference progress and explicit new-session recalibration PASS");
+      }
+      if (mode === "모의면접") {
+        await page.route("**/process-frame", route => route.fulfill({json:{...payload,
+          measurement_status:"valid",measurement_reason:null,state:"CANDIDATE",event:null,coaching:null,
+          features:{head_tilt:0,shoulder_height_difference:0,torso_lean:0,body_sway:0,landmark_visibility:1,
+            left_hand_region:"center",right_hand_region:"center",knee_distance:1.3,knee_reference_distance:.825,
+            knee_distance_ratio:1.58,knee_placement_status:"too_wide",hand_placement_status:"correct",placement_issues:["knees_apart"]}}}));
+        await page.locator(".placement-live").waitFor();
+        const summary = page.locator(".feature-summary > div");
+        assert.equal(await summary.filter({has:page.getByText("손 배치",{exact:true})}).locator("strong").innerText(),"양호");
+        assert.equal(await summary.filter({has:page.getByText("무릎 간격",{exact:true})}).locator("strong").innerText(),"주의");
+        assert.match(await page.locator(".placement-live").innerText(),/중앙 무릎 영역.*중앙 무릎 영역/);
+        assert.match(await page.locator(".placement-live").innerText(),/기준보다 벌어짐.*1.58배/);
+        await page.unroute("**/process-frame");
+        await page.getByRole("heading",{name:"자세 측정 불가"}).waitFor();
+        console.log("Independent correct hands and wide knees feedback PASS");
+      }
       assert.equal(await page.locator(".preview .pose-overlay").count(),0);
       // Alternate missing joints and usable measurements on the real preview page.
       let routed = 0;

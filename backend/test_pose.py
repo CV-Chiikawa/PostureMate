@@ -39,10 +39,21 @@ def front(spread=0.02, dx=0, hands_y=0.85):
         (16, 0.5 - spread / 2, hands_y),
     ]:
         pose[i] = point(x + dx, y)
+    # Match Landmarker output: each shoulder/hip has estimated world geometry.
+    for i in (11,12): pose[i].world = SimpleNamespace(y=-.48,z=0.)
+    for i in (23,24): pose[i].world = SimpleNamespace(y=0.,z=0.)
     return pose
 
 
 def sequence(engine, mode, frames, rubric="", start=0):
+    # Existing posture scenarios begin after an explicit neutral reference capture.
+    if mode != "neck" and engine.reference.baseline is None:
+        neutral = front(spread=.09 if rubric == "B" else .02)
+        for i in (11,12): neutral[i].world = SimpleNamespace(y=-.48,z=0.)
+        for i in (23,24): neutral[i].world = SimpleNamespace(y=0.,z=0.)
+        for i in range(26):
+            engine.observe(neutral,640,480,mode,rubric,start+i*.2)
+        start += 5.2
     return [
         engine.observe(p, 640, 480, mode, rubric, round(start + i * 0.2, 3)) for i, p in enumerate(frames)
     ]
@@ -165,7 +176,7 @@ class PoseTests(unittest.TestCase):
             last = sequence(PoseSession(), "interview", [front(spread, hands_y=hands_y)] * 26, rubric)[-1]
             self.assertEqual(last["state"], expected)
             if expected == "WARNING":
-                self.assertEqual(last["event"]["type"], "hand_placement")
+                self.assertEqual(last["active_issue"], "hand_placement")
 
     def test_invisible_or_out_of_frame_wrist_blocks_interview_only(self):
         for bad in [point(0.5, 0.5, 0.1), point(1.2, 0.5), point(float("nan"), 0.5)]:

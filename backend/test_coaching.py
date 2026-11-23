@@ -43,9 +43,9 @@ class FeedbackCopyTests(unittest.TestCase):
     def test_interview_distinguishes_knee_spacing_from_hand_position(self):
         for rubric, posture, expected in [
             ("A", front(spread=.09), "무릎 사이가 벌어져 있습니다."),
-            ("A", front(hands_y=.6), "손이 양쪽 무릎 가운데에 모여 있지 않습니다."),
+            ("A", front(hands_y=.45), "손이 양쪽 무릎 가운데에 모여 있지 않습니다."),
             ("B", front(), "양쪽 무릎이 가까이 붙어 있습니다."),
-            ("B", front(spread=.09, hands_y=.6), "손이 같은 쪽 무릎 위에 놓여 있지 않습니다."),
+            ("B", front(spread=.09, hands_y=.45), "손이 같은 쪽 무릎 위에 놓여 있지 않습니다."),
         ]:
             with self.subTest(rubric=rubric, expected=expected):
                 frames = sequence(PoseSession(), "interview", [posture] * 30, rubric)
@@ -74,6 +74,34 @@ class NeckCoachingTests(unittest.IsolatedAsyncioTestCase):
             transport=httpx.ASGITransport(app), base_url="http://test"))
         app.state.solar = await self.enterAsyncContext(httpx.AsyncClient(
             transport=httpx.MockTransport(self.upstream)))
+
+    async def test_health_reports_key_presence_without_exposing_credentials(self):
+        for key, expected in [("unit-test-only", True), ("", False)]:
+            with self.subTest(configured=expected), patch.dict("os.environ", {"UPSTAGE_API_KEY": key}):
+                response = await self.client.get("/health")
+                self.assertIs(response.json().get("solar_configured"), expected)
+                self.assertNotIn("unit-test-only", response.text)
+
+    async def test_upstream_failure_logs_status_without_credentials_or_response(self):
+        self.status = 401
+        self.body = {"error": "private-upstream-detail"}
+        self.release.set()
+        with self.assertLogs("backend.coaching", level="WARNING") as logs:
+            await self.caution()
+            await asyncio.wait_for(self.finished.wait(), 1)
+        output = " ".join(logs.output)
+        self.assertIn("HTTP 401", output)
+        self.assertNotIn("unit-test-only", output)
+        self.assertNotIn("private-upstream-detail", output)
+
+    async def test_unusable_success_response_logs_safe_reason(self):
+        self.body = {"choices": [{"finish_reason": "length", "message": {"content": "private-answer"}}]}
+        self.release.set()
+        with self.assertLogs("backend.coaching", level="WARNING") as logs:
+            await self.caution()
+            await asyncio.wait_for(self.finished.wait(), 1)
+        self.assertIn("incomplete_response", " ".join(logs.output))
+        self.assertNotIn("private-answer", " ".join(logs.output))
 
     async def upstream(self, req):
         self.calls.append(req)
@@ -254,6 +282,8 @@ class NeckCoachingTests(unittest.IsolatedAsyncioTestCase):
     async def test_alerts_in_both_frontal_modes_request_solar(self):
         self.release.set()
         for mode in ("interview", "presentation"):
+            self.points = front(spread=.09) if mode == "interview" else front()
+            await self.until(lambda d: d["measurement_status"] == "valid", mode=mode, session=mode)
             self.points = front()
             if mode == "presentation":
                 self.points[7].y += 0.05

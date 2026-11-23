@@ -3,7 +3,7 @@ function formatDuration(ms) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-function ControlPanel({ sessionState, elapsedMs, stats, cameraReady, onStart, onPause, onResume, onEnd }) {
+function ControlPanel({ sessionState, elapsedMs, stats, cameraReady, onStart, onPause, onResume, onEnd, onRecalibrate }) {
   const issueDuration = Object.values(stats.issueDurations).reduce((total, duration) => total + duration, 0);
   return (
     <section className="session-toolbar">
@@ -13,6 +13,7 @@ function ControlPanel({ sessionState, elapsedMs, stats, cameraReady, onStart, on
       </div>
       <div className="session-actions">
         {sessionState === "idle" && <button className="primary-button start-session" disabled={!cameraReady} onClick={onStart}>분석 시작</button>}
+        {sessionState === "running" && onRecalibrate && <button className="secondary-button" onClick={onRecalibrate}>기준 자세 다시 측정</button>}
         {sessionState === "running" && <button className="secondary-button" onClick={onPause}>일시정지</button>}
         {sessionState === "paused" && <button className="secondary-button" disabled={!cameraReady} onClick={onResume}>계속하기</button>}
         {(sessionState === "running" || sessionState === "paused") && <button className="danger-button" onClick={onEnd}>분석 종료</button>}
