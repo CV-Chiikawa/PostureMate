@@ -16,9 +16,11 @@ import WelcomeModal from "./components/WelcomeModal";
 import { MODES } from "./config/modes";
 import { useCamera } from "./hooks/useCamera";
 import { useFrameSampler } from "./hooks/useFrameSampler";
+import { requestSessionFeedback } from "./services/AnalysisClient";
 import { getRemoteEventKey, stableDisplay, toTemporalState } from "./services/RemoteAnalysisProvider";
 import { evaluateContext } from "./utils/evaluator";
 import { referenceNotice } from "./utils/calibrationGuide";
+import { breakMeasurementContinuity, buildSessionFacts, createSessionMetrics, recordMeasurement, recordObservation } from "./utils/sessionFeedback";
 
 const GUIDE_COOKIE_NAME = "posture-coach-hide-guide";
 const GUIDE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -34,6 +36,7 @@ function saveGuideOptOutCookie() {
 }
 
 const INITIAL_TEMPORAL_STATE = { status: null, eventLabel: null, coaching: null };
+const INITIAL_SESSION_FEEDBACK = { status: "idle", source: null, message: "" };
 
 const initialStats = () => ({ caution: 0, warning: 0, recovered: 0, eventCounts: {}, issueDurations: {} });
 
@@ -80,6 +83,7 @@ function App() {
   const [stats, setStats] = useState(initialStats);
   const [logs, setLogs] = useState([]);
   const [liveAnalysis, setRemoteAnalysis] = useState(null);
+  const [sessionFeedback, setSessionFeedback] = useState(INITIAL_SESSION_FEEDBACK);
   const [resultCueVisible, setResultCueVisible] = useState(false);
   const logIdRef = useRef(0);
   const lastTickRef = useRef(0);
@@ -89,8 +93,12 @@ function App() {
   const displayRef = useRef(null);
   const rawTemporalRef = useRef(INITIAL_TEMPORAL_STATE);
   const lastIssueRef = useRef(null);
+  const statsRef = useRef(stats);
+  const sessionMetricsRef = useRef(createSessionMetrics());
+  const feedbackAbortRef = useRef(null);
 
   const clearMeasurement = useCallback((reason) => {
+    breakMeasurementContinuity(sessionMetricsRef.current);
     setRemoteAnalysis(reason ? { measurementStatus: "offline", measurementReason: reason } : null);
     setTemporal({ ...INITIAL_TEMPORAL_STATE, status: null });
     remoteStatusRef.current = null;
@@ -123,6 +131,8 @@ function App() {
   const coachingContext = measurementNotice?.title ?? temporal.activeEventId ?? temporal.status ?? "waiting";
   const coachingScope = liveAnalysis?.measurementStatus === "offline" ? liveAnalysis.measurementReason : sessionState;
   const coachingLabel = !measurementNotice && coaching?.source === "solar" ? "SOLAR 응답" : "기본 응답";
+  const coachingSource = !measurementNotice && coaching?.source ? coaching.source : "system";
+  const coachingEventId = !measurementNotice ? temporal.activeEventId : null;
   const coachingMessage = sessionState === "ended"
     ? "이번 세션이 끝났습니다."
     : sessionState === "paused" ? "분석을 잠시 멈췄습니다."
@@ -137,13 +147,26 @@ function App() {
     setLogs((current) => [...current, entry].slice(-24));
   }, []);
 
+  const updateStats = useCallback((updater) => {
+    setStats((current) => {
+      const next = updater(current);
+      statsRef.current = next;
+      return next;
+    });
+  }, []);
+
   const resetSession = useCallback((state = "idle") => {
+    feedbackAbortRef.current?.abort();
+    feedbackAbortRef.current = null;
     setSessionState(state);
     setElapsedMs(0);
     setTemporal({ ...INITIAL_TEMPORAL_STATE });
-    setStats(initialStats());
+    const nextStats = initialStats();
+    statsRef.current = nextStats;
+    setStats(nextStats);
     setLogs([]);
     setRemoteAnalysis(null);
+    setSessionFeedback(INITIAL_SESSION_FEEDBACK);
     setResultCueVisible(false);
     lastTickRef.current = 0;
     remoteEventKeysRef.current.clear();
@@ -151,13 +174,19 @@ function App() {
     displayRef.current = null;
     rawTemporalRef.current = INITIAL_TEMPORAL_STATE;
     lastIssueRef.current = null;
+    sessionMetricsRef.current = createSessionMetrics();
   }, []);
+
+  useEffect(() => { statsRef.current = stats; }, [stats]);
+  useEffect(() => () => feedbackAbortRef.current?.abort(), []);
 
   const applyRemoteAnalysis = useCallback((result) => {
     if (sessionState !== "running" || result.sessionId !== frameSessionId) return;
+    const receivedAt = performance.now();
+    recordMeasurement(sessionMetricsRef.current, result.measurementStatus, receivedAt);
     const raw = toTemporalState(result, rawTemporalRef.current);
     rawTemporalRef.current = raw;
-    displayRef.current = stableDisplay(displayRef.current, { ...result, temporal: raw }, performance.now());
+    displayRef.current = stableDisplay(displayRef.current, { ...result, temporal: raw }, receivedAt);
     const confirmed = displayRef.current.current;
     setRemoteAnalysis(confirmed);
     const shown = confirmed?.temporal ?? INITIAL_TEMPORAL_STATE;
@@ -170,7 +199,7 @@ function App() {
         addLog(result.state, result.state === "CAUTION" ? "주의 상태" : "정상 자세 복귀");
       }
       if (["CAUTION", "WARNING", "RECOVERED"].includes(result.state)) {
-        setStats((current) => ({
+        updateStats((current) => ({
           ...current,
           caution: current.caution + (result.state === "CAUTION" ? 1 : 0),
           warning: current.warning + (result.state === "WARNING" ? 1 : 0),
@@ -182,6 +211,7 @@ function App() {
     const eventKey = getRemoteEventKey(result);
     if (eventKey && !remoteEventKeysRef.current.has(eventKey)) {
       remoteEventKeysRef.current.add(eventKey);
+      recordObservation(sessionMetricsRef.current, result.event?.metrics?.observation);
       addLog(result.state, `자세 변화 · ${result.event.type}`);
     }
     const previousIssue = lastIssueRef.current;
@@ -189,14 +219,14 @@ function App() {
     if (issue) {
       const same = previousIssue?.type === issue && previousIssue.duration <= result.issueDurationMs;
       const delta = result.issueDurationMs - (same ? previousIssue.duration : 0);
-      setStats((current) => ({
+      updateStats((current) => ({
         ...current,
         eventCounts: { ...current.eventCounts, [issue]: (current.eventCounts[issue] || 0) + (same ? 0 : 1) },
         issueDurations: { ...current.issueDurations, [issue]: (current.issueDurations[issue] || 0) + delta },
       }));
     }
     lastIssueRef.current = issue ? { type: issue, duration: result.issueDurationMs } : null;
-  }, [addLog, frameSessionId, sessionState]);
+  }, [addLog, frameSessionId, sessionState, updateStats]);
 
   useFrameSampler({
     videoRef,
@@ -238,6 +268,28 @@ function App() {
     addLog("세션", "기준 자세 다시 측정 · 이전 연습 기록 유지");
   };
   const endSession = () => {
+    const facts = buildSessionFacts({ mode: modeId, rubric, elapsedMs, stats: statsRef.current, metrics: sessionMetricsRef.current });
+    feedbackAbortRef.current?.abort();
+    if (facts.measured_seconds < 3) {
+      setSessionFeedback({ status: "done", source: "insufficient", message: "" });
+    } else {
+      const controller = new AbortController();
+      feedbackAbortRef.current = controller;
+      setSessionFeedback({ status: "loading", source: null, message: "" });
+      requestSessionFeedback(facts, controller.signal)
+        .then((feedback) => {
+          if (!controller.signal.aborted) setSessionFeedback({ status: "done", ...feedback });
+        })
+        .catch((error) => {
+          if (!controller.signal.aborted) {
+            console.warn("[SessionFeedback] Request unavailable", { reason: error.message });
+            setSessionFeedback({ status: "done", source: "fallback", message: "" });
+          }
+        })
+        .finally(() => {
+          if (feedbackAbortRef.current === controller) feedbackAbortRef.current = null;
+        });
+    }
     setSessionState("ended");
     clearMeasurement();
     setResultCueVisible(true);
@@ -293,7 +345,7 @@ function App() {
               <StatusPanel temporal={temporal} evaluation={evaluation} measurementTitle={measurementNotice?.title} />
               <FeaturePanel featurePacket={featurePacket} evaluation={evaluation} mode={mode} />
               <CoachingPanel key={`${modeId}/${rubric}/${frameSessionId}/${coachingScope}/${coachingContext}`}
-                label={coachingLabel} message={coachingMessage} />
+                label={coachingLabel} message={coachingMessage} source={coachingSource} eventId={coachingEventId} />
             </aside>
           </div>
 
@@ -302,7 +354,7 @@ function App() {
           <div className="support-grid"><EventLog logs={logs} defaultOpen={sessionState === "ended"} /></div>
         </main>
 
-        {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} logs={logs} coachingLabel={coachingLabel} coachingMessage={coachingMessage} onRestart={() => resetSession("idle")} /></section>}
+        {sessionState === "ended" && <section ref={resultRef} id="analysis-result" className="analysis-result-section" aria-label="분석 결과"><SessionSummary mode={mode} rubric={rubric} elapsedMs={elapsedMs} stats={stats} logs={logs} sessionFeedback={sessionFeedback} onRestart={() => resetSession("idle")} /></section>}
         {sessionState === "ended" && <button className={`result-scroll-cue ${resultCueVisible ? "visible" : "hidden"}`} type="button" aria-controls="analysis-result" onClick={scrollToResult}><span className="result-scroll-cue-content"><b>분석 결과 보기</b><i aria-hidden="true">↓</i></span></button>}
       </>}
     </div>

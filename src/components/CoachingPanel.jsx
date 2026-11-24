@@ -2,19 +2,25 @@ import { useEffect, useState } from "react";
 
 const READING_MS = 8000;
 const CONFIRM_MS = 2000;
+const SOLAR_UPGRADE_MS = 1000;
 
-function CoachingPanel({ label, message }) {
-  const [shown, setShown] = useState(() => ({ label, message, since: performance.now() }));
+function CoachingPanel({ label, message, source, eventId }) {
+  const [shown, setShown] = useState(() => ({ label, message, source, eventId, since: performance.now() }));
   const isSolar = shown.label === "SOLAR 응답";
 
   useEffect(() => {
-    if (shown.label === label && shown.message === message) return;
-    const delay = Math.max(CONFIRM_MS, shown.since + READING_MS - performance.now());
+    if (shown.label === label && shown.message === message && shown.source === source && shown.eventId === eventId) return;
+    const now = performance.now();
+    const isSolarUpgrade = shown.source === "fallback" && source === "solar"
+      && Boolean(eventId) && shown.eventId === eventId;
+    const delay = isSolarUpgrade
+      ? Math.max(0, shown.since + SOLAR_UPGRADE_MS - now)
+      : Math.max(CONFIRM_MS, shown.since + READING_MS - now);
     const timer = window.setTimeout(() => {
-      setShown({ label, message, since: performance.now() });
+      setShown({ label, message, source, eventId, since: performance.now() });
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [shown, label, message]);
+  }, [shown, label, message, source, eventId]);
 
   return (
     <section className="panel coaching-panel">
