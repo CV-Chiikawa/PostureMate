@@ -122,7 +122,7 @@ function App() {
   const coaching = temporal.coaching;
   const coachingContext = measurementNotice?.title ?? temporal.activeEventId ?? temporal.status ?? "waiting";
   const coachingScope = liveAnalysis?.measurementStatus === "offline" ? liveAnalysis.measurementReason : sessionState;
-  const coachingLabel = !measurementNotice && coaching?.source === "solar" ? "SOLAR 코칭" : "기본 안내";
+  const coachingLabel = !measurementNotice && coaching?.source === "solar" ? "SOLAR 응답" : "기본 응답";
   const coachingMessage = sessionState === "ended"
     ? "이번 세션이 끝났습니다."
     : sessionState === "paused" ? "분석을 잠시 멈췄습니다."

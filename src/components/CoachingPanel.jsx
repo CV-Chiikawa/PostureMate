@@ -5,6 +5,7 @@ const CONFIRM_MS = 2000;
 
 function CoachingPanel({ label, message }) {
   const [shown, setShown] = useState(() => ({ label, message, since: performance.now() }));
+  const isSolar = shown.label === "SOLAR 응답";
 
   useEffect(() => {
     if (shown.label === label && shown.message === message) return;
@@ -17,7 +18,14 @@ function CoachingPanel({ label, message }) {
 
   return (
     <section className="panel coaching-panel">
-      <div className="panel-heading"><div><h2>지금 이렇게 해보세요</h2></div></div>
+      <div className="panel-heading">
+        <div className="coaching-heading-title">
+          <h2>지금 이렇게 해보세요</h2>
+          <span className={`coaching-source-badge ${isSolar ? "solar" : "default"}`} aria-label={`코칭 출처: ${shown.label}`}>
+            {shown.label}
+          </span>
+        </div>
+      </div>
       <blockquote><span aria-hidden="true">“</span><p aria-live="polite">{shown.message}</p></blockquote>
     </section>
   );

@@ -68,7 +68,7 @@
 /* Header */
 .app-header{width:min(1380px,calc(100% - 40px));min-height:72px;margin:18px auto 0;padding:10px 24px;border:1px solid var(--line);border-radius:999px;background:rgba(240,243,244,.92);box-shadow:0 8px 28px rgba(34,71,110,.06);top:12px}
 .brand{gap:0;align-self:center}.brand-mark{display:none}.brand strong{color:var(--accent-dark);font-size:26px;line-height:1;letter-spacing:-1.1px}
-.main-nav{gap:22px}.main-nav button{padding:0 20px;color:var(--text);font-size:14px}.main-nav button:hover:not(:disabled),.main-nav button.active{color:var(--accent-dark);background:var(--card-bg)}
+.main-nav{gap:22px}.main-nav button{padding:0 20px;color:var(--text);font-size:18px}.main-nav button:hover:not(:disabled),.main-nav button.active{color:var(--accent-dark);background:var(--card-bg)}
 .menu-trigger{border-color:var(--line);background:#fff;color:var(--accent-dark)}
 .global-menu{border-color:var(--line);background:#fff}.global-menu button:hover:not(:disabled){background:var(--card-bg)}
 .header-summary span,.header-summary strong{border-color:var(--line);background:#fff;color:var(--muted)}
@@ -127,11 +127,12 @@
 .preview-topbar strong{padding:6px 9px;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:rgba(19,43,68,.55)}
 .overlay-disclaimer{top:46px;background:rgba(19,43,68,.78);color:#dcecff}
 .preview-meta{bottom:58px}.preview-guidance{position:absolute;z-index:12;left:0;right:0;bottom:0;min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:10px 14px;color:#fff;background:rgba(17,39,61,.82);backdrop-filter:blur(7px);font-size:9px}
-.preview-guidance span{color:#b9d5ef;font-weight:900}.preview-guidance strong{text-align:right;font-size:9px}.guide-frame span{top:34px}.camera-session-ended{background:rgba(20,45,70,.75)}
+.preview-guidance span{color:#b9d5ef;font-weight:900}.preview-guidance strong{text-align:right;font-size:11px}.guide-frame span{top:34px}.camera-session-ended{background:rgba(20,45,70,.75)}
 .status-stack{gap:12px}.status-panel,.coaching-panel,.feature-panel{padding:18px}
 .status-panel{--state:var(--green);background:var(--normal-bg)}.status-candidate{--state:var(--accent);background:#edf3fa}.status-caution{--state:var(--amber);background:var(--caution-bg)}.status-warning{--state:var(--red);background:var(--warning-bg)}.status-recovered{--state:var(--green);background:var(--normal-bg)}.status-cooldown{--state:var(--accent-dark);background:#edf3fa}
 .status-message{background:rgba(255,255,255,.62)}
 .coaching-panel{background:var(--card-bg)}.coaching-panel blockquote{border-left-color:var(--accent);background:#fff}.coaching-panel blockquote>span{color:rgba(104,139,176,.38)}
+.coaching-heading-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.coaching-heading-title h2{margin-right:0}.coaching-source-badge{display:inline-flex;align-items:center;padding:5px 9px;border:1px solid var(--line-strong);border-radius:999px;color:var(--muted);background:#fff;font-size:10px;font-weight:850;line-height:1}.coaching-source-badge.solar{border-color:rgba(104,139,176,.45);color:var(--brand);background:var(--card-bg)}
 .feature-panel{background:#fff}.feature-summary div{border-color:var(--line);background:var(--card-bg)}
 .feature-summary strong{color:var(--green)}.feature-summary strong.issue{color:var(--amber)}
 .placement-live{display:grid;gap:5px;margin-top:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card-bg)}.placement-live p{margin:0;color:var(--text);font-size:11px;line-height:1.45}.placement-live small{color:var(--muted);font-size:9px;line-height:1.45}
@@ -185,7 +186,7 @@
 }
 @media(max-width:760px){
   .app-header{position:static;width:calc(100% - 24px);margin:12px auto 0;padding:10px 14px;border-radius:24px}
-  .main-nav{gap:4px}.main-nav button{font-size:11px}
+  .main-nav{gap:4px}.main-nav button{font-size:12px}
   .hero-section{grid-template-columns:1fr;padding-top:42px}.hero-copy h1{width:calc(100% + 16px);margin-left:-8px}.hero-visual{border-radius:28px}
   .mode-carousel-section{padding-bottom:34px}.carousel-window{min-height:344px}
   .carousel-card>span{position:static;padding:15px 18px 18px;color:var(--text);background:#fff;opacity:1}.carousel-card>span b{color:var(--accent-dark)}.carousel-card>span small{color:var(--muted);font-size:10px}
