@@ -1,69 +1,33 @@
-# 거북목 데모 이벤트 → Solar Pro 4
+# PostureMate 프레임 API
 
-FastAPI가 JPEG를 검증한 뒤 **합성 자세 이벤트**를 만듭니다. `analysis_source: "demo"`는 계속 유지합니다. MediaPipe 실영상 판정은 아직 없지만, `neck` 모드의 코칭 패널은 [Upstage Chat Completions API](https://console.upstage.ai/ko/api/chat)의 `solar-pro4` 문장을 받아 표시합니다.
+`POST /process-frame`은 multipart 필드 `file`(JPEG), `session_id`, `mode`를 받는다. 면접(`interview`)은 `rubric=A` 또는 `B`를 사용한다. 발표(`presentation`)와 거북목(`neck`)은 루브릭을 비운다. 소스의 기본값이자 유일한 허용값은 `mediapipe`이다. 지원하지 않는 소스와 모드 조합에는 HTTP 422를 반환한다.
 
-## 로컬 실행
+`measurement_status`는 유효한 측정에서 `valid`, 기준 자세 수집 중에는 `calibrating`, 필수 관절이 보이지 않을 때는 `unavailable`이다. 뒤의 두 상태에서는 `features`, `state`, `event`, `coaching`이 모두 null이다. 모델을 사용할 수 없으면 HTTP 503을 반환한다.
 
-저장소 루트에서 Python **3.11 이상**과 PowerShell을 사용합니다.
+자세와 코칭 상태는 세션별로 관리한다. 모드나 루브릭 변경 시 자세 기준을 초기화한다. 같은 모드에서 `segment`가 바뀌면 기준 자세는 유지하고 경고 지속시간을 다시 센다. 세션은 메모리에 최대 128개를 보관하며 5분 이상 사용하지 않은 항목은 다음 요청 때 정리한다.
+
+주의와 경고 이벤트에는 기본 코칭 문구를 즉시 반환한다. SOLAR Pro 4가 5초 이내에 응답하면 같은 이벤트의 후속 프레임으로 문장을 한 번 전달한다. 기본 행동 문구와 사실상 같은 응답은 버린다. 같은 모드·면접 기준·유형·세부 관찰·경고 단계에는 세션별로 30초의 호출 간격을 적용한다. 원본 JPEG는 서버 메모리에서 처리한다.
+
+## 실행과 코칭 연동
+
+Python 3.13과 PowerShell에서 이 브랜치의 루트를 열고 다음 명령을 실행한다. 모델 준비 명령은 파일 체크섬을 확인한다. SOLAR를 사용할 때 `solar_credentials save`로 키를 등록하면 같은 Windows 사용자로 서버를 다시 시작해도 불러온다. 서버는 `UPSTAGE_API_KEY` 환경 변수도 지원한다.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
-# 이 터미널의 서버 프로세스에서만 사용. 이미 설정한 경우 생략.
-$env:UPSTAGE_API_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Upstage API key' -AsSecureString)).Password
+.\.venv\Scripts\python.exe -m backend.landmarker
+.\.venv\Scripts\python.exe -m backend.solar_credentials save
 .\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
 ```
 
-키 입력 줄을 생략하고 키 없는 환경에서 실행해도 경고와 고정 안내는 동작합니다. 키는 프론트의 `VITE_*` 변수에 넣지 않습니다. 인증 없는 **로컬·단일 워커 데모**입니다. 세션은 메모리에 최대 128개 유지하고, 5분 동안 입력이 없던 세션은 다음 요청 때 정리합니다.
+`GET /health`의 `solar_configured`는 키 설정 여부를 표시한다. 분석 종료 시 `POST /session-feedback`은 세션 집계 JSON으로 종합 피드백을 생성한다. 유효 측정 3초 미만이면 `insufficient`, 키 누락·생성 실패면 `fallback`, 성공하면 `solar`와 `message`를 반환한다. 요청 예시와 결과 카드 연결 방법은 [프론트 담당자 인계서](FRONTEND_HANDOFF.md)에 있다.
 
-두 번째 터미널에서:
+모델을 준비한 뒤 `.\.venv\Scripts\python.exe -m unittest discover -s backend -p "test_*.py"`로 백엔드 테스트를 실행한다.
 
-```powershell
-# 모의 Upstage 응답으로 검사. 키와 실행 중인 서버가 필요하지 않습니다.
-.\.venv\Scripts\python.exe -m unittest discover -s backend -p "test_*.py" -v
-# 실행 중인 서버에 합성 JPEG 전송. 서버에 실제 키가 있으면 최대 두 번 실호출합니다.
-.\.venv\Scripts\python.exe -m backend.smoke_neck
-# 키 없는 서버에서는 대체 문구 경로만 별도 검증
-.\.venv\Scripts\python.exe -m backend.smoke_neck --expect-fallback
-```
+## 모의면접·발표 보정
 
-## 브라우저에서 확인
+모의면접·발표 응답에는 `calibration: {status: "collecting"|"ready", progress: 0..1, required_seconds: 5}`가 추가됩니다. 수집 중은 `measurement_status=calibrating`, `measurement_reason=reference_collecting|reference_unstable`이며 측정값·상태·이벤트는 null입니다. 구도가 바뀐 경우 `unavailable/framing_changed`를 반환합니다. 손목/무릎뿐 아니라 상체 평가에 필요한 골반 가시성도 확인합니다. 모의면접의 전방 추정 불가는 `forward_proxy_unavailable`로 반환하며 정상으로 대체하지 않습니다. 기준은 세션에 속하므로 다시 측정할 때 새 session_id를 사용합니다. 기존 거북목 보정·API 요청 필드는 유지합니다.
 
-키를 설정한 FastAPI를 실행한 상태에서 두 번째 터미널로 저장소 루트에서 `npm ci`(최초 1회), `npm run dev`를 실행합니다. 기본 개발 주소는 `http://localhost:5173`입니다.
+모의면접 손·무릎 판정은 `features.hand_placement_status`(`correct`/`incorrect`)와 `features.knee_placement_status`(`within_reference`/`too_wide`/`too_close`)로 분리합니다. `knee_distance`는 어깨너비로 정규화한 현재 무릎 중심 간격, `knee_reference_distance`는 해당 루브릭 기준 수집의 중앙값, `knee_distance_ratio`는 기준 대비 배율입니다. `placement_issues`에는 모든 배치 문제를 담고, 기존 `hand_placement` 이벤트의 `metrics.observation`은 대표 세부 문제를 나타냅니다. `left_hand_source`/`right_hand_source`는 `pose_hand_points` 또는 `wrist_proxy`입니다. 루브릭을 바꾸면 간격 기준도 새로 수집합니다.
 
-1. **거북목 방지**를 선택하고 오른쪽 상단 메뉴에서 **분석 설정 → 입력 방식 → 실제 카메라**를 선택합니다. 카메라 권한을 허용하고 **분석 시작**을 누르면 기준 자세 보정 안내가 잠시 표시됩니다.
-2. 주의·경고가 시작되면 **기본 안내**가 먼저 뜹니다. 응답이 5초 안에 오면 같은 이벤트의 **SOLAR 코칭**으로 바뀝니다. 키가 없거나 요청에 실패하면 기본 안내가 유지됩니다.
-3. 곧 **자세 측정 불가**와 카메라 각도 조정 안내가 나오며 이전 SOLAR 문장이 사라집니다. 뒤이어 **정상 자세로 돌아왔습니다** 안내가 표시됩니다. 상태는 아래 데모 프레임 순서로 바뀝니다.
-
-자동 회귀 검증: `node --test tests/remote-coaching.test.mjs`.
-
-## 프레임과 호출 규칙
-
-- `POST /process-frame`에 `mode=neck`, `rubric=""`으로 JPEG를 보냅니다. 응답의 `measurement_status`가 `calibrating` 또는 `unavailable`이면 `features`, `state`, `event`, `coaching`은 모두 `null`입니다. 가림에는 `measurement_reason: "ear_or_shoulder_not_visible"`를 보냅니다. 이 동안 대기 중인 코칭은 취소되고 복구 횟수도 오르지 않습니다. 정상적으로 측정한 응답의 값은 `valid`입니다.
-- 첫 세션 주기는 1번째부터 보정, 11번째 정상, 21번째 주의, 56번째 경고, 91번째 가림, 101번째 복구입니다. 기본 5 FPS에서 보정과 가림은 각각 약 2초, 주의와 경고는 각각 약 7초입니다. 판정은 모두 데모입니다.
-- 새 이벤트는 고정 문구와 즉시 반환합니다. 모델 입력은 모드·루브릭·유형·심각도·지속시간·측정값뿐입니다. JPEG·세션 ID는 전송하지 않습니다.
-- 같은 세션·유형·심각도는 호출 시작 후 **30초** 동안 재호출하지 않습니다. 주의와 경고는 별도로 셉니다. 같은 이벤트가 계속되는 동안은 30초를 넘겨도 다시 요청하지 않습니다.
-- SOLAR만 **최대 5초** 기다립니다. 시간 초과, 키 누락, 호출 오류, 사용할 수 없는 답변은 고정 문구로 끝나며 자동 재시도하지 않습니다. 프레임 전송은 계속됩니다.
-
-## 프론트 인계: 이벤트 ID로 문장 연결
-
-아래는 같은 세션의 **응답 일부**입니다. 첫 주의 이벤트에서 기본 안내를 표시하고 `event.event_id`를 현재 경고 ID로 보관합니다.
-
-```json
-{
-  "session_id": "sample", "state": "CAUTION",
-  "event": {"event_id": "demo:sample:neck:caution:20", "type": "forward_head_proxy", "severity": "caution"},
-  "coaching": {"event_id": "demo:sample:neck:caution:20", "source": "fallback", "message": "고개가 기준 자세보다 앞으로 나왔어요. 처음 편안하게 앉았던 위치로 돌아와 보세요."}
-}
-```
-
-문장이 준비된 뒤 **처음 오는 유효한 프레임**에 한 번 전달합니다. 이때 `event`는 이미 전달했으므로 `null`일 수 있습니다. 예시 문구:
-
-```json
-{
-  "session_id": "sample", "state": "CAUTION", "event": null,
-  "coaching": {"event_id": "demo:sample:neck:caution:20", "source": "solar", "message": "고개가 앞으로 나왔어요. 처음 앉았던 위치로 돌아와 보세요."}
-}
-```
-
-`AnalysisResponseAdapter`에서 선택 필드 `coaching`을 보존하고 현재 세션·이벤트 ID가 **모두** 일치할 때만 문구를 교체합니다. `coaching: null`은 새 문구가 없다는 뜻이므로 같은 이벤트의 표시 문구는 유지합니다. 복구·모드 변경·세션 종료 시 현재 ID를 비웁니다. 일시정지 중에는 프레임이 없으므로 문장을 전달하지 않습니다.
+보정 지연 시 `measurement_status=calibrating`, `measurement_reason=reference_timeout`입니다. 15초 경과만으로 기준을 저장하지 않으며 상태·이벤트는 계속 null입니다. `calibration.unstable_feature` 및 유효/최소 샘플 수로 원인을 안내합니다. 일시적인 모델 튐은 제외하지만 가림·긴 입력 공백은 관찰 연속성을 초기화합니다.

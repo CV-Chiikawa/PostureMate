@@ -15,6 +15,8 @@ dist-ssr
 .env.*
 !.env.example
 .venv/
+backend/models/*.task
+backend/models/*.tflite
 __pycache__/
 
 # Local implementation notes and generated specifications
