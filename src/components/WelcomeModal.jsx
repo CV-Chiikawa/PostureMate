@@ -30,8 +30,8 @@ function WelcomeModal({ onClose, showDontShowAgain = true }) {
         <div><span className="eyebrow">사용 안내</span><strong id="guide-title">PostureMate</strong></div>
         <button type="button" aria-label="사용 안내 닫기" onPointerDown={(event) => event.stopPropagation()} onClick={() => onClose(dontShowAgain)}>×</button>
       </div>
-      <p>상황에 맞는 기준으로 자세를 살펴보는 AI 코칭 선행 데모입니다.</p>
-      <ol><li>상단 메뉴에서 사용할 모드를 고르세요.</li><li>분석 화면에서 입력 방식을 확인하세요.</li><li>분석 시작을 눌러 세션을 시작하세요.</li></ol>
+      <p>상황에 맞는 기준으로 자세를 살펴보는 자세 코칭 서비스입니다.</p>
+      <ol><li>상단 메뉴에서 사용할 모드를 고르세요.</li><li>카메라 권한을 허용하고 화면에 맞춰 자세를 잡으세요.</li><li>분석 시작을 눌러 세션을 시작하세요.</li></ol>
       <div className="guide-actions">
         {showDontShowAgain && <label className="dont-show"><input type="checkbox" checked={dontShowAgain} onChange={(event) => setDontShowAgain(event.target.checked)} /> 다음부터 자동으로 열지 않기</label>}
         <button className="secondary-button guide-close" type="button" onClick={() => onClose(dontShowAgain)}>닫기</button>

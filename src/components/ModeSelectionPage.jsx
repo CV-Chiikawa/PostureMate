@@ -3,7 +3,7 @@ import ModeArtwork from "./ModeArtwork";
 
 const modeOrder = ["neck", "interview", "presentation"];
 const modeDetails = {
-  neck: { tagline: "목·상체 자세 변화 중심", points: ["머리 전방 변화와 상체 기울기 확인", "측면 또는 준측면 구도 권장", "오래 앉아 있는 화면 작업에 적합"] },
+  neck: { tagline: "목·상체 자세 변화 중심", points: ["개인 기준 대비 목 자세 변화 확인", "정면·좌우 측면 자동 판별", "오래 앉아 있는 화면 작업에 적합"] },
   interview: { tagline: "정면 착석 안정성 중심", points: ["머리·어깨·상체 균형 확인", "Rubric A/B 손·무릎 배치 지원", "면접과 유사한 환경에서 반복 연습"] },
   presentation: { tagline: "자연스러운 이동을 허용한 평가", points: ["지속적인 기울기와 흔들림 확인", "넓은 상체 움직임 범위 반영", "발표 연습의 자세 흐름 점검"] },
 };

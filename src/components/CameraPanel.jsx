@@ -1,26 +1,17 @@
-function PoseOverlay({ pose }) {
-  const x = pose.sway || 0;
-  const lean = pose.lean || 0;
-  const head = pose.head || 0;
+function CameraPanel({ mode, videoRef, visibility, temporalStatus, sessionState, cameraPermission, cameraError, onCameraRetry }) {
   return (
-    <svg className="pose-overlay" viewBox="0 0 320 180" role="img" aria-label="실제 검출이 아닌 데모용 자세 포인트"><g transform={`translate(${x} 0) rotate(${lean * 0.18} 160 104)`}><circle cx={160 + head * 0.2} cy="45" r="14" /><line x1="160" y1="59" x2="160" y2="115" /><line x1="118" y1="76" x2="202" y2="76" /><line x1="118" y1="76" x2="132" y2="121" /><line x1="202" y1="76" x2="188" y2="121" /><line x1="160" y1="115" x2="137" y2="158" /><line x1="160" y1="115" x2="183" y2="158" />{[160,118,202,132,188,137,183].map((cx,index) => <circle key={`${cx}-${index}`} cx={cx} cy={[59,76,76,121,121,158,158][index]} r="3" />)}</g></svg>
-  );
-}
-
-function CameraPanel({ mode, scenario, inputMode, videoRef, visibility, temporalStatus, sessionState, cameraPermission, cameraError, onCameraRetry }) {
-  return (
-    <section className={`panel camera-panel focus-camera posture-${temporalStatus.toLowerCase()}`}>
-      <div className="panel-heading"><div><span className="eyebrow">현재 화면</span><h2>카메라 미리보기</h2></div><span className={`source-badge ${inputMode}`}>{inputMode === "live" ? "실제 영상 · 데모 분석" : "데모 분석"}</span></div>
+    <section className={`panel camera-panel focus-camera posture-${temporalStatus?.toLowerCase() ?? "waiting"}`}>
+      <div className="panel-heading"><div><span className="eyebrow">현재 화면</span><h2>카메라 미리보기</h2></div><span className="source-badge live">실제 카메라</span></div>
       <div className="preview">
-        {inputMode === "live" ? <video ref={videoRef} autoPlay muted playsInline /> : <div className="mock-scene" aria-label="데모 카메라 화면"><div className="mock-aura" /><div className="mock-person" /></div>}
-        <div className="preview-topbar"><span><i aria-hidden="true" />{inputMode === "live" && cameraPermission === "granted" ? "카메라 연결됨" : inputMode === "mock" ? "데모 화면" : "카메라 연결 대기"}</span><strong>{mode.label}</strong></div>
-        <div className={`guide-frame guide-${mode.id}`}><span>{mode.label} 구도</span></div><PoseOverlay pose={scenario.pose} /><span className="overlay-disclaimer">자세 포인트 · 데모</span>
-        <div className="preview-meta"><span>가시성 {Math.round(visibility * 100)}%</span><span>{inputMode === "mock" ? scenario.id === "low-visibility" ? "데모 입력 상태" : scenario.label : "영상은 실제 · 분석값은 데모"}</span></div>
+        <video ref={videoRef} autoPlay muted playsInline />
+        <div className="preview-topbar"><span><i aria-hidden="true" />{cameraPermission === "granted" ? "카메라 연결됨" : sessionState === "ended" ? "카메라 꺼짐" : "카메라 연결 대기"}</span><strong>{mode.label}</strong></div>
+        <div className={`guide-frame guide-${mode.id}`}><span>{mode.label} 구도</span></div>
+        <div className="preview-meta"><span>{visibility == null ? "측정 대기" : `가시성 ${Math.round(visibility * 100)}%`}</span><span>MediaPipe 자세 분석</span></div>
         <div className="preview-guidance"><span>구도 안내</span><strong>{mode.guide || `${mode.label}에 맞게 상체가 화면 안에 보이도록 조정해 주세요.`}</strong></div>
-        {inputMode === "live" && sessionState === "ended" && <div className="camera-session-ended">분석이 종료되었습니다.</div>}
+        {sessionState === "ended" && <div className="camera-session-ended">분석이 종료되었습니다.</div>}
       </div>
-      {inputMode === "live" && cameraError && <div className="camera-inline-error"><span>{cameraError}</span><button type="button" onClick={onCameraRetry}>다시 시도</button></div>}
-      {inputMode === "live" && !cameraError && cameraPermission !== "granted" && <p className="camera-wait">카메라 연결 상태 · {cameraPermission === "requesting" ? "권한 확인 중" : "연결 대기"}</p>}
+      {sessionState !== "ended" && cameraError && <div className="camera-inline-error"><span>{cameraError}</span><button type="button" onClick={onCameraRetry}>다시 시도</button></div>}
+      {sessionState !== "ended" && !cameraError && cameraPermission !== "granted" && <p className="camera-wait">카메라 연결 상태 · {cameraPermission === "requesting" ? "권한 확인 중" : "연결 대기"}</p>}
     </section>
   );
 }

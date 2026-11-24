@@ -18,13 +18,18 @@ function captureJpeg(video, canvas, quality) {
   });
 }
 
-export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, onAnalysisResult }) {
+export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, onAnalysisResult, onUnavailable }) {
   useEffect(() => {
-    if (!enabled || !sessionId || !ANALYSIS_API_BASE_URL) return undefined;
+    if (!enabled || !sessionId) return undefined;
+    if (!ANALYSIS_API_BASE_URL) {
+      onUnavailable("endpoint_missing");
+      return undefined;
+    }
 
     const intervalMs = 1000 / FRAME_SAMPLING.fps;
     const canvas = document.createElement("canvas");
     const controller = new AbortController();
+    const segment = crypto.randomUUID();
     const metrics = { frames: 0, skipped: 0, errors: 0, lastTickAt: 0, lastLogAt: 0 };
     let active = true;
     let inFlight = false;
@@ -32,7 +37,10 @@ export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, on
 
     const tick = async () => {
       const video = videoRef.current;
-      if (!video || !video.srcObject) return;
+      if (!video?.srcObject || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.srcObject.getVideoTracks()[0]?.readyState === "ended") {
+        onUnavailable("camera_unavailable");
+        return;
+      }
       if (performance.now() < retryAfter) return;
       if (inFlight) { metrics.skipped += 1; return; }
       inFlight = true;
@@ -43,7 +51,7 @@ export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, on
         const frame = await captureJpeg(video, canvas, FRAME_SAMPLING.jpegQuality);
         if (!active || !frame) return;
         metrics.frames += 1;
-        const receipt = await sendFrame({ blob: frame.blob, sessionId, mode, rubric, signal: controller.signal });
+        const receipt = await sendFrame({ blob: frame.blob, sessionId, mode, rubric, segment, signal: controller.signal });
         if (active && receipt?.analysis?.sessionId === sessionId) onAnalysisResult?.(receipt.analysis);
         if (active && receipt && now - metrics.lastLogAt >= FRAME_SAMPLING.logIntervalMs) {
           console.info("[FrameSampler]", { frame: metrics.frames, targetFps: FRAME_SAMPLING.fps, actualIntervalMs, resolution: `${frame.width}x${frame.height}`, jpegBytes: frame.blob.size, skipped: metrics.skipped, errors: metrics.errors });
@@ -52,6 +60,7 @@ export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, on
         }
       } catch (error) {
         if (active) {
+          onUnavailable(error.message === "HTTP 503" ? "model_unavailable" : "disconnected");
           metrics.errors += 1;
           retryAfter = performance.now() + FRAME_SAMPLING.errorRetryMs;
           if (now - metrics.lastLogAt >= FRAME_SAMPLING.logIntervalMs) {
@@ -74,5 +83,5 @@ export function useFrameSampler({ videoRef, enabled, sessionId, mode, rubric, on
       canvas.height = 0;
       console.info("[FrameSampler] Stopped", { frames: metrics.frames, skipped: metrics.skipped, errors: metrics.errors });
     };
-  }, [videoRef, enabled, sessionId, mode, rubric, onAnalysisResult]);
+  }, [videoRef, enabled, sessionId, mode, rubric, onAnalysisResult, onUnavailable]);
 }

@@ -34,7 +34,7 @@ function IntroPage({ onStart, onChooseMode }) {
           <p>면접, 거북목 방지, 발표 자세까지<br />AI가 당신의 바른 자세를 도와드립니다.</p>
           <button className="primary-button hero-action" type="button" onClick={onStart}>분석 시작하기</button>
         </div>
-        <div className="hero-visual" aria-label="PostureMate 자세 코칭 데모 일러스트">
+        <div className="hero-visual" aria-label="PostureMate 자세 코칭 일러스트">
           <div className="hero-orbit orbit-one" /><div className="hero-orbit orbit-two" />
           <ModeArtwork modeId="neck" />
           <div className="hero-note note-top"><b>실시간 상태</b><span>상황별 자세 변화 확인</span></div>
