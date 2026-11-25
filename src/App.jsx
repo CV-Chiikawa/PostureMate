@@ -331,7 +331,7 @@ function App() {
     <div className="app-shell">
       {showGuide && <WelcomeModal onClose={closeGuide} showDontShowAgain={!guideOpenedManually} />}
       {showSettings && <ModeSelector modeId={modeId} rubric={rubric} cameraDevices={cameraDevices} cameraDeviceId={cameraDeviceId} cameraPermission={cameraPermission} onModeChange={changeMode} onRubricChange={changeRubric} onCameraDeviceChange={(id) => { selectCameraDevice(id); resetSession(); }} onClose={() => setShowSettings(false)} />}
-      <Header page={page} mode={mode} rubric={rubric} sessionState={sessionState} hasResult={sessionState === "ended"} onNavigate={navigatePage} onShowResult={showResult} onShowGuide={() => { setGuideOpenedManually(true); setShowGuide(true); }} onShowSettings={() => setShowSettings(true)} />
+      <Header page={page} sessionState={sessionState} hasResult={sessionState === "ended"} onNavigate={navigatePage} onShowResult={showResult} onShowGuide={() => { setGuideOpenedManually(true); setShowGuide(true); }} onShowSettings={() => setShowSettings(true)} />
 
       {page === "intro" && <IntroPage onStart={() => setPage("modes")} onChooseMode={chooseModeFromIntro} />}
       {page === "modes" && <ModeSelectionPage modeId={modeId} onSelectMode={changeMode} onStartMode={enterAnalysis} />}
